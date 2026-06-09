@@ -797,10 +797,9 @@ async function loadTodosBoloes() {
 }
 
 async function aprovarBolao(chave, cod, nome) {
-  const {data:cfg}=await db.from('config').select('valor').eq('chave',chave);
-  if(!cfg||!cfg.length) return;
-  const val={...cfg[0].valor, status:'aprovado'};
-  await db.from('config').update({valor:val}).eq('chave',chave);
+  const val = {nome: nome, codigo: cod, status: 'aprovado'};
+  const {error} = await db.from('config').update({valor: val}).eq('chave', chave);
+  if(error) { showAlert('admin','error','Erro: '+error.message); return; }
   showAlert('admin','success','✅ Bolão "'+nome+'" aprovado!');
   loadSuperPanel();
 }
