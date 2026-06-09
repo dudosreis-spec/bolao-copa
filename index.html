@@ -773,8 +773,8 @@ async function loadPendentes() {
         <div class="bolao-cod">${p.valor.codigo}</div>
       </div>
       <div class="bolao-actions">
-        <button class="btn-sm btn-grn" onclick="aprovarBolao('${p.chave}','${p.valor.codigo}','${p.valor.nome}')">✅ Aprovar</button>
-        <button class="btn-sm btn-red" onclick="rejeitarBolao('${p.chave}')">❌</button>
+        <button class="btn-sm btn-grn" data-chave="${p.chave}" data-cod="${p.valor.codigo}" data-nome="${p.valor.nome}" onclick="aprovarBolaoBtn(this)">✅ Aprovar</button>
+        <button class="btn-sm btn-red" data-chave="${p.chave}" onclick="rejeitarBolaoBtn(this)">❌</button>
       </div>
     </div>`).join('');
 }
@@ -791,7 +791,7 @@ async function loadTodosBoloes() {
       </div>
       <div style="display:flex;align-items:center;gap:6px">
         <span class="status-badge status-${p.valor.status||'pendente'}">${p.valor.status||'pendente'}</span>
-        <button class="btn-sm btn-red" onclick="excluirFamilia('${p.valor.codigo}','${p.valor.nome}')">🗑️</button>
+        <button class="btn-sm btn-red" data-cod="${p.valor.codigo}" data-nome="${p.valor.nome}" onclick="excluirFamiliaBtn(this)">🗑️</button>
       </div>
     </div>`).join('');
 }
@@ -804,7 +804,9 @@ async function aprovarBolao(chave, cod, nome) {
   loadSuperPanel();
 }
 
-async function excluirFamilia(cod, nome) {
+async function excluirFamiliaBtn(btn) {
+  const cod  = btn.getAttribute('data-cod');
+  const nome = btn.getAttribute('data-nome');
   if(!confirm('Excluir o bolão "'+nome+'" ('+cod+') e TODOS os dados? Isso não pode ser desfeito.')) return;
   await db.from('palpites').delete().eq('familia', cod);
   await db.from('jogos').delete().eq('familia', cod);
