@@ -792,9 +792,12 @@ async function loadTodosBoloes() {
     </div>`).join('');
 }
 
-async function aprovarBolao(chave, cod, nome) {
-  const val = {nome: nome, codigo: cod, status: 'aprovado'};
-  const {error} = await db.from('config').update({valor: val}).eq('chave', chave);
+async function aprovarBolaoBtn(btn) {
+  const chave = btn.getAttribute('data-chave');
+  const cod   = btn.getAttribute('data-cod');
+  const nome  = btn.getAttribute('data-nome');
+  const val   = {nome, codigo: cod, status: 'aprovado'};
+  const {error} = await db.from('config').upsert({chave, valor: val, familia: cod}, {onConflict: 'chave'});
   if(error) { showAlert('admin','error','Erro: '+error.message); return; }
   showAlert('admin','success','✅ Bolão "'+nome+'" aprovado!');
   loadSuperPanel();
@@ -813,11 +816,16 @@ async function excluirFamiliaBtn(btn) {
   loadSuperPanel();
 }
 
-async function rejeitarBolao(chave) {
-  const {data:cfg}=await db.from('config').select('valor').eq('chave',chave);
-  if(!cfg||!cfg.length) return;
-  const val={...cfg[0].valor, status:'rejeitado'};
-  await db.from('config').update({valor:val}).eq('chave',chave);
+async function rejeitarBolaoBtn(btn) {
+  const chave = btn.getAttribute('data-chave');
+  const cod   = btn.getAttribute('data-cod');
+  const nome  = btn.getAttribute('data-nome');
+  const val   = {nome, codigo: cod, status: 'rejeitado'};
+  const {error} = await db.from('config').upsert({chave, valor: val, familia: cod}, {onConflict: 'chave'});
+  if(error) { showAlert('admin','error','Erro: '+error.message); return; }
+  showAlert('admin','info','Bolão rejeitado.');
+  loadSuperPanel();
+}
   showAlert('admin','info','Bolão rejeitado.');
   loadSuperPanel();
 }
