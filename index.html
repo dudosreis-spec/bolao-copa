@@ -159,6 +159,18 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); min-he
 .select-inp option { background:#1a3a2a; color:#fff; }
 
 .pending-count { display:inline-block; background:var(--red); color:#fff; font-size:10px; font-weight:800; padding:2px 6px; border-radius:10px; margin-left:4px; vertical-align:middle; }
+
+.fase-header { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; color:var(--gold); padding:10px 0 6px; border-bottom:1px solid var(--gold-border); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+.jogo-check-item { display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+.jogo-check-item:last-child { border-bottom:none; }
+.jogo-check-item input[type=checkbox] { width:18px; height:18px; accent-color:var(--gold); cursor:pointer; flex-shrink:0; }
+.jogo-check-label { flex:1; font-size:12px; color:var(--w60); }
+.jogo-check-label strong { color:#fff; font-size:13px; display:block; }
+.jogo-check-date { font-size:10px; color:var(--w30); }
+.fase-group { margin-bottom:8px; }
+.select-all-btn { font-size:10px; color:var(--gold); background:none; border:none; cursor:pointer; font-weight:700; }
+.toggle-on { background:var(--gold) !important; }
+.toggle-on #toggle-knob, .toggle-knob-on { transform:translateX(20px) !important; }
 </style>
 </head>
 <body>
@@ -272,8 +284,9 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); min-he
 
   <!-- login admin -->
   <div id="admin-login" class="card">
-    <div class="card-title">Senha de acesso</div>
-    <div class="field"><input class="inp" type="password" id="admin-senha" placeholder="Senha..."/></div>
+    <div class="card-title">Acesso administrativo</div>
+    <div class="field"><label>Usuário</label><input class="inp" type="text" id="admin-usuario" placeholder="Seu usuário..."/></div>
+    <div class="field"><label>Senha</label><input class="inp" type="password" id="admin-senha" placeholder="Sua senha..."/></div>
     <button class="btn btn-gold" onclick="adminLogin()">Entrar</button>
   </div>
 
@@ -300,23 +313,35 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); min-he
       <button class="btn-change" onclick="adminLogout()">Sair</button>
     </div>
 
-    <!-- cadastrar jogo -->
+    <!-- seletor de jogos -->
     <div class="card card-gold">
-      <div class="card-title card-title-gold">Adicionar jogo</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div class="field"><label>Time Casa</label><input class="inp inp-sm" type="text" id="jogo-time-casa" placeholder="Brasil"/></div>
-        <div class="field"><label>Código País</label><input class="inp inp-sm" type="text" id="jogo-pais-casa" placeholder="br" maxlength="6" oninput="this.value=this.value.toLowerCase()"/></div>
-        <div class="field"><label>Time Fora</label><input class="inp inp-sm" type="text" id="jogo-time-fora" placeholder="Argentina"/></div>
-        <div class="field"><label>Código País</label><input class="inp inp-sm" type="text" id="jogo-pais-fora" placeholder="ar" maxlength="6" oninput="this.value=this.value.toLowerCase()"/></div>
-      </div>
-      <div class="field"><label>Data e hora (horário SP)</label><input class="inp inp-sm" type="datetime-local" id="jogo-data"/></div>
-      <button class="btn btn-gold" onclick="adicionarJogo()">➕ Adicionar jogo</button>
+      <div class="card-title card-title-gold">Selecionar jogos do bolão</div>
+      <p style="font-size:12px;color:var(--w40);margin-bottom:12px">Marque os jogos que aparecerão para os participantes palpitarem.</p>
+      <div id="jogos-selector"><div class="loading-text"><span class="spinner"></span> Carregando jogos...</div></div>
+      <button class="btn btn-gold" onclick="salvarJogosSelecionados()" style="margin-top:8px">💾 Salvar seleção</button>
     </div>
 
-    <!-- lista de jogos -->
+    <!-- lista de jogos ativos -->
     <div class="card">
-      <div class="card-title">Jogos cadastrados</div>
+      <div class="card-title">Jogos ativos no bolão</div>
       <div id="admin-jogos-list"><div class="loading-text"><span class="spinner"></span></div></div>
+    </div>
+
+    <!-- flag acumulação -->
+    <div class="card">
+      <div class="card-title">Configuração de pontuação</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0">
+        <div>
+          <div style="font-size:14px;font-weight:600">Acumular pontos de jogos anteriores</div>
+          <div style="font-size:12px;color:var(--w40);margin-top:2px">Soma pontos de jogos já desmarcados</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
+          <input type="checkbox" id="flag-acumular" style="opacity:0;width:0;height:0" onchange="salvarFlagAcumular(this.checked)">
+          <span id="toggle-span" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.2);border-radius:24px;transition:0.3s">
+            <span style="position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:0.3s;display:block" id="toggle-knob"></span>
+          </span>
+        </label>
+      </div>
     </div>
 
     <!-- placares reais -->
@@ -332,6 +357,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); min-he
 const SUPABASE_URL = 'https://ywiasznrrvcvuhpqayub.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_obhZmBWwd2cqdw0inmF7Ug_bu5jUNWk';
 const SUPER_PASS   = 'copa2026';
+const SUPER_USER   = 'adminmaster';
 
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -495,7 +521,7 @@ function logout() {
 
 // ── JOGOS + PALPITES ──────────────────────────────
 async function loadJogosEPalpites() {
-  const {data:jogos}=await db.from('jogos').select('*').eq('familia',currentFamilia.codigo).order('numero',{ascending:true});
+  const {data:jogos}=await db.from('jogos').select('*').eq('familia',currentFamilia.codigo).eq('visivel',true).order('numero',{ascending:true});
   jogosCache=jogos||[];
 
   // carregar palpites existentes
@@ -639,16 +665,39 @@ async function loadRanking() {
   const container=document.getElementById('ranking-container');
   container.innerHTML='<div class="loading-text"><span class="spinner"></span> Carregando...</div>';
 
-  const {data:jogos}=await db.from('jogos').select('*').eq('familia',currentFamilia.codigo).order('numero');
-  const {data:pals} =await db.from('palpites').select('*').eq('familia',currentFamilia.codigo);
-  const {data:users} =await db.from('usuarios').select('nome').eq('familia',currentFamilia.codigo).eq('role','user').order('nome');
-  // include admins too
-  const {data:admins}=await db.from('usuarios').select('nome').eq('familia',currentFamilia.codigo).eq('role','admin');
-  const allUsers=[...(users||[]),...(admins||[])];
+  // verificar flag de acumulação
+  const {data:flagData} = await db.from('config').select('*').eq('chave','flag_acumular_'+currentFamilia.codigo);
+  const acumular = flagData && flagData.length > 0 ? flagData[0].valor?.acumular !== false : true;
+
+  // jogos ativos (marcados)
+  const {data:jogosAtivos} = await db.from('jogos').select('*').eq('familia',currentFamilia.codigo).order('numero');
+  const jogosAtivosIds = new Set((jogosAtivos||[]).map(j=>j.id));
+
+  // todos os palpites da família
+  const {data:pals} = await db.from('palpites').select('*').eq('familia',currentFamilia.codigo);
+
+  // acumular=true: todos os jogos (visivel ou não) com placar lançado
+  // acumular=false: só jogos visíveis
+  let jogosParaRanking;
+  if(acumular) {
+    const {data:todosJogos} = await db.from('jogos').select('*').eq('familia',currentFamilia.codigo).order('numero');
+    // só os que têm placar lançado
+    jogosParaRanking = (todosJogos||[]).filter(j => j.placar_casa !== null && j.placar_casa !== undefined);
+    // também incluir jogos visíveis sem placar (para mostrar palpites pendentes)
+    const visivelSemPlacar = (jogosAtivos||[]).filter(j => j.placar_casa === null || j.placar_casa === undefined);
+    jogosParaRanking = [...jogosParaRanking, ...visivelSemPlacar.filter(j => !jogosParaRanking.find(x=>x.id===j.id))];
+  } else {
+    jogosParaRanking = jogosAtivos || [];
+  }
+
+  const {data:users}  = await db.from('usuarios').select('nome').eq('familia',currentFamilia.codigo).eq('role','user').order('nome');
+  const {data:admins} = await db.from('usuarios').select('nome').eq('familia',currentFamilia.codigo).eq('role','admin');
+  const allUsers = [...(users||[]),...(admins||[])];
 
   if(!allUsers.length){container.innerHTML='<div class="empty-state">Nenhum participante ainda.</div>';return;}
 
-  const jogosArr=jogos||[], palsArr=pals||[];
+  const jogosArr = jogosParaRanking;
+  const palsArr  = pals||[];
 
   const ranked=allUsers.map(u=>{
     let total=0, det=[];
@@ -689,8 +738,13 @@ async function loadRanking() {
 
 // ── ADMIN LOGIN ───────────────────────────────────
 async function adminLogin() {
-  const senha=document.getElementById('admin-senha').value;
-  if(senha===SUPER_PASS) {
+  const usuario = document.getElementById('admin-usuario').value.trim();
+  const senha   = document.getElementById('admin-senha').value;
+
+  if(!usuario || !senha) return showAlert('admin','error','Preencha usuário e senha.');
+
+  // super admin
+  if(usuario === SUPER_USER && senha === SUPER_PASS) {
     adminRole='super';
     document.getElementById('admin-login').style.display='none';
     document.getElementById('super-panel').style.display='block';
@@ -698,34 +752,27 @@ async function adminLogin() {
     loadSuperPanel();
     return;
   }
-  // tentar como admin de família
-  if(currentFamilia && currentUser && currentUser.role==='admin') {
-    if(senha===currentUser.senha||true) { // já logado como admin
-      openFamiliaAdmin(currentFamilia, currentUser);
-      return;
-    }
+
+  // admin de família — busca por nome + senha + role admin
+  const {data, error} = await db.from('usuarios').select('*').eq('nome', usuario).eq('senha', senha).eq('role', 'admin');
+  if(error || !data || data.length === 0) {
+    showAlert('admin','error','Usuário ou senha incorretos.');
+    return;
   }
-  // buscar em usuários
-  if(currentFamilia) {
-    const {data}=await db.from('usuarios').select('*').eq('familia',currentFamilia.codigo).eq('role','admin');
-    if(data&&data.length>0) {
-      const adm=data.find(u=>u.senha===senha);
-      if(adm) { openFamiliaAdmin(currentFamilia,adm); return; }
-    }
+
+  const adm = data[0];
+  const {data:cfg} = await db.from('config').select('*').eq('chave','familia_'+adm.familia);
+  if(!cfg || cfg.length === 0) {
+    showAlert('admin','error','Bolão não encontrado.');
+    return;
   }
-  // buscar em qualquer família
-  const {data:allAdmins}=await db.from('usuarios').select('*').eq('role','admin');
-  if(allAdmins) {
-    const adm=allAdmins.find(u=>u.senha===senha);
-    if(adm) {
-      const {data:cfg}=await db.from('config').select('*').eq('chave','familia_'+adm.familia);
-      if(cfg&&cfg.length>0) {
-        openFamiliaAdmin({codigo:adm.familia,nome:cfg[0].valor?.nome||adm.familia},adm);
-        return;
-      }
-    }
+
+  if(cfg[0].valor?.status !== 'aprovado') {
+    showAlert('admin','info','Este bolão ainda aguarda aprovação.');
+    return;
   }
-  showAlert('admin','error','Senha incorreta.');
+
+  openFamiliaAdmin({codigo: adm.familia, nome: cfg[0].valor?.nome || adm.familia}, adm);
 }
 
 function openFamiliaAdmin(familia, user) {
@@ -829,60 +876,138 @@ async function rejeitarBolaoBtn(btn) {
 
 // ── FAMILIA ADMIN ─────────────────────────────────
 async function loadFamiliaAdmin() {
+  await loadJogosSelector();
   await loadAdminJogos();
   await loadAdminPlacares();
+  await loadFlagAcumular();
 }
 
 async function loadAdminJogos() {
-  const cod=adminFamiliaCtx.familia.codigo;
-  const {data:jogos}=await db.from('jogos').select('*').eq('familia',cod).order('numero');
-  const el=document.getElementById('admin-jogos-list');
-  if(!jogos||!jogos.length){el.innerHTML='<div class="empty-state" style="padding:8px">Nenhum jogo ainda.</div>';return;}
-  el.innerHTML=jogos.map(j=>`
+  const cod = adminFamiliaCtx.familia.codigo;
+  const {data:jogos} = await db.from('jogos').select('*').eq('familia',cod).eq('visivel',true).order('numero');
+  const el = document.getElementById('admin-jogos-list');
+  if(!jogos||!jogos.length){
+    el.innerHTML='<div class="empty-state" style="padding:8px">Nenhum jogo visível no momento.</div>';
+    return;
+  }
+  el.innerHTML = jogos.map(j=>`
     <div class="jogo-admin-item">
       <div class="jogo-admin-info">
         <div class="jogo-admin-time">J${j.numero} · ${j.time_casa} x ${j.time_fora}</div>
         <div class="jogo-admin-date">${formatDate(j.data_hora)}</div>
       </div>
-      <button class="btn-sm btn-red" onclick="removerJogo('${j.id}')">🗑️</button>
+      <button class="btn-sm btn-red" data-id="${j.id}" onclick="removerJogoBtn(this)">👁️</button>
     </div>`).join('');
 }
 
-async function adicionarJogo() {
-  const cod     =adminFamiliaCtx.familia.codigo;
-  const timeCasa=document.getElementById('jogo-time-casa').value.trim();
-  const paisCasa=document.getElementById('jogo-pais-casa').value.trim().toLowerCase();
-  const timeFora=document.getElementById('jogo-time-fora').value.trim();
-  const paisFora=document.getElementById('jogo-pais-fora').value.trim().toLowerCase();
-  const dataHoraLocal=document.getElementById('jogo-data').value;
+async function loadJogosSelector() {
+  const cod = adminFamiliaCtx.familia.codigo;
+  // jogos globais
+  const {data:todos} = await db.from('jogos_copa').select('*').order('numero');
+  // jogos já selecionados para essa família
+  const {data:ativos} = await db.from('jogos').select('*').eq('familia', cod);
+  const ativosNums = new Set((ativos||[]).filter(j=>j.visivel!==false).map(j=>j.numero));
 
-  if(!timeCasa||!paisCasa||!timeFora||!paisFora||!dataHoraLocal)
-    return showAlert('admin','error','Preencha todos os campos do jogo.');
+  const el = document.getElementById('jogos-selector');
+  if(!todos||!todos.length){el.innerHTML='<div class="empty-state">Nenhum jogo disponível.</div>';return;}
 
-  // converter horário SP (UTC-3) para UTC
-  const dataHoraUTC=new Date(dataHoraLocal+':00-03:00').toISOString();
+  // agrupar por fase
+  const fases = {};
+  todos.forEach(j => {
+    const key = j.fase + (j.fase==='Grupos' ? ' - Grupo '+j.grupo : '');
+    if(!fases[key]) fases[key] = [];
+    fases[key].push(j);
+  });
 
-  // número sequencial
-  const {data:jogos}=await db.from('jogos').select('numero').eq('familia',cod).order('numero',{ascending:false}).limit(1);
-  const numero=jogos&&jogos.length>0?jogos[0].numero+1:1;
-
-  const {error}=await db.from('jogos').insert({familia:cod,numero,time_casa:timeCasa,pais_casa:paisCasa,time_fora:timeFora,pais_fora:paisFora,data_hora:dataHoraUTC});
-  if(error) return showAlert('admin','error','Erro: '+error.message);
-
-  // limpar campos
-  ['jogo-time-casa','jogo-pais-casa','jogo-time-fora','jogo-pais-fora','jogo-data'].forEach(id=>document.getElementById(id).value='');
-  showAlert('admin','success','✅ Jogo adicionado!');
-  loadAdminJogos();
-  loadAdminPlacares();
+  let html = '';
+  for(const [fase, jogos] of Object.entries(fases)) {
+    const todosNaFase = jogos.every(j=>ativosNums.has(j.numero));
+    html += `<div class="fase-group">
+      <div class="fase-header" onclick="toggleFase(this)">
+        <span>⚽ ${fase}</span>
+        <button class="select-all-btn" onclick="event.stopPropagation();selecionarFase(this,'${fase}',${!todosNaFase})">${todosNaFase?'Desmarcar todos':'Marcar todos'}</button>
+      </div>
+      <div class="fase-items">`;
+    jogos.forEach(j => {
+      const checked = ativosNums.has(j.numero) ? 'checked' : '';
+      html += `<div class="jogo-check-item">
+        <input type="checkbox" id="jc_${j.numero}" data-numero="${j.numero}" ${checked}>
+        <label class="jogo-check-label" for="jc_${j.numero}">
+          <strong>${j.time_casa} x ${j.time_fora}</strong>
+          <span class="jogo-check-date">${formatDate(j.data_hora)}</span>
+        </label>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+  el.innerHTML = html;
 }
 
-async function removerJogo(id) {
-  if(!confirm('Remover este jogo? Os palpites relacionados também serão removidos.')) return;
-  await db.from('palpites').delete().eq('jogo_id',id);
-  await db.from('jogos').delete().eq('id',id);
-  showAlert('admin','info','Jogo removido.');
+function toggleFase(header) {
+  const items = header.nextElementSibling;
+  items.style.display = items.style.display === 'none' ? 'block' : 'none';
+}
+
+function selecionarFase(btn, fase, marcar) {
+  const checkboxes = document.querySelectorAll('#jogos-selector input[type=checkbox]');
+  // find which belong to this fase by checking parent fase-group
+  const grupos = document.querySelectorAll('.fase-group');
+  grupos.forEach(g => {
+    const header = g.querySelector('.fase-header span');
+    if(header && header.textContent.includes(fase.replace('⚽ ',''))) {
+      g.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = marcar);
+    }
+  });
+  btn.textContent = marcar ? 'Desmarcar todos' : 'Marcar todos';
+}
+
+async function salvarJogosSelecionados() {
+  const cod = adminFamiliaCtx.familia.codigo;
+  const allCheckboxes = document.querySelectorAll('#jogos-selector input[type=checkbox]');
+  const selectedNums  = Array.from(allCheckboxes).filter(cb=>cb.checked).map(cb=>parseInt(cb.getAttribute('data-numero')));
+  const allNums       = Array.from(allCheckboxes).map(cb=>parseInt(cb.getAttribute('data-numero')));
+
+  if(!selectedNums.length) return showAlert('admin','error','Selecione pelo menos um jogo.');
+
+  // buscar jogos já existentes para essa família
+  const {data:existentes} = await db.from('jogos').select('*').eq('familia', cod);
+  const existentesMap = {};
+  (existentes||[]).forEach(j => existentesMap[j.numero] = j);
+
+  for(const num of allNums) {
+    const visivel = selectedNums.includes(num);
+    if(existentesMap[num]) {
+      // já existe — só atualiza visivel via upsert
+      await db.from('jogos').upsert({...existentesMap[num], visivel}, {onConflict:'id'});
+    } else if(visivel) {
+      // novo jogo marcado — buscar dados globais e inserir
+      const {data:global} = await db.from('jogos_copa').select('*').eq('numero', num);
+      if(global && global.length > 0) {
+        const j = global[0];
+        await db.from('jogos').insert({
+          familia: cod, numero: j.numero,
+          time_casa: j.time_casa, pais_casa: j.pais_casa,
+          time_fora: j.time_fora, pais_fora: j.pais_fora,
+          data_hora: j.data_hora, visivel: true
+        });
+      }
+    }
+  }
+
+  showAlert('admin','success','✅ Jogos salvos! '+selectedNums.length+' visíveis.');
   loadAdminJogos();
   loadAdminPlacares();
+  loadJogosSelector();
+}
+
+async function removerJogoBtn(btn) {
+  const id = btn.getAttribute('data-id');
+  if(!confirm('Ocultar este jogo do bolão? Os palpites serão preservados para acumulação de pontos.')) return;
+  await db.from('jogos').upsert({id, visivel: false}, {onConflict:'id'});
+  showAlert('admin','info','Jogo ocultado.');
+  loadAdminJogos();
+  loadAdminPlacares();
+  loadJogosSelector();
 }
 
 async function loadAdminPlacares() {
@@ -903,6 +1028,31 @@ async function loadAdminPlacares() {
         <input class="score-inp" type="number" min="0" max="99" placeholder="—" id="rf_${j.id}" value="${j.placar_fora!==null&&j.placar_fora!==undefined?j.placar_fora:''}">
       </div>
     </div>`).join('');
+}
+
+async function salvarFlagAcumular(val) {
+  const cod = adminFamiliaCtx.familia.codigo;
+  const chave = 'flag_acumular_' + cod;
+  await db.from('config').upsert({chave, valor: {acumular: val}, familia: cod}, {onConflict:'chave'});
+  updateToggleUI(val);
+  showAlert('admin', val ? 'success' : 'info', val ? '✅ Pontos acumulados ativado.' : 'Apenas jogos ativos.');
+}
+
+async function loadFlagAcumular() {
+  const cod = adminFamiliaCtx.familia.codigo;
+  const {data} = await db.from('config').select('*').eq('chave','flag_acumular_'+cod);
+  const val = data && data.length > 0 ? data[0].valor?.acumular !== false : true; // default true
+  document.getElementById('flag-acumular').checked = val;
+  updateToggleUI(val);
+}
+
+function updateToggleUI(val) {
+  const span = document.getElementById('toggle-span');
+  const knob = document.getElementById('toggle-knob');
+  if(span && knob) {
+    span.style.background = val ? 'var(--gold)' : 'rgba(255,255,255,0.2)';
+    knob.style.transform = val ? 'translateX(20px)' : 'translateX(0)';
+  }
 }
 
 async function salvarPlacares() {
