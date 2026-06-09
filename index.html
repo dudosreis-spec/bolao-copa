@@ -615,12 +615,8 @@ async function salvarPalpites() {
 
     const payload={nome:currentUser.nome,familia:currentFamilia.codigo,jogo_id:j.id,gols_casa:parseInt(h),gols_fora:parseInt(f)};
     // upsert via update→insert
-    const {data:upd,error:errUp}=await db.from('palpites').update({gols_casa:parseInt(h),gols_fora:parseInt(f)})
-      .eq('nome',currentUser.nome).eq('familia',currentFamilia.codigo).eq('jogo_id',j.id).select();
-    if(!errUp&&(!upd||upd.length===0)) {
-      const {error:errIn}=await db.from('palpites').insert(payload);
-      if(errIn) erros++; else ok++;
-    } else if(errUp) erros++; else ok++;
+    const {error} = await db.from('palpites').upsert(payload, {onConflict: 'nome,familia,jogo_id'});
+    if(error) erros++; else ok++;
   }
 
   btn.disabled=false; btn.textContent='💾 Salvar palpites';
@@ -914,7 +910,7 @@ async function salvarPlacares() {
     const f=document.getElementById('rf_'+j.id)?.value;
     const ph=h!==''?parseInt(h):null;
     const pf=f!==''?parseInt(f):null;
-    await db.from('jogos').update({placar_casa:ph,placar_fora:pf}).eq('id',j.id);
+    await db.from('jogos').upsert({...j, placar_casa:ph, placar_fora:pf}, {onConflict: 'id'});
   }
   showAlert('admin','success','✅ Placares salvos! Ranking atualizado.');
 }
