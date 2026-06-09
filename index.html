@@ -171,7 +171,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); min-he
 
 <!-- ===== PALPITE ===== -->
 <div class="page active" id="page-palpite">
-  <div class="header"><span class="trophy">🏆</span><h1>Bolão da Copa</h1><p id="header-familia">2026</p></div>
+  <div class="header"><span class="trophy">🏆</span><h1>Bolão da Copa 2026</h1></div>
   <div id="alert-palpite" class="alert"></div>
 
   <!-- STEP 1: código -->
@@ -413,7 +413,7 @@ async function entrarCodigo() {
   currentFamilia={codigo:cod,nome:f.nome};
   try{localStorage.setItem('bolao_familia',JSON.stringify(currentFamilia));}catch(e){}
   document.getElementById('badge-familia').textContent=currentFamilia.nome;
-  document.getElementById('header-familia').textContent=currentFamilia.nome+' · 2026';
+  
   showStep('step-auth');
 }
 
@@ -789,7 +789,10 @@ async function loadTodosBoloes() {
         <div class="bolao-nome">${p.valor.nome}</div>
         <div class="bolao-cod">${p.valor.codigo}</div>
       </div>
-      <span class="status-badge status-${p.valor.status||'pendente'}">${p.valor.status||'pendente'}</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="status-badge status-${p.valor.status||'pendente'}">${p.valor.status||'pendente'}</span>
+        <button class="btn-sm btn-red" onclick="excluirFamilia('${p.valor.codigo}','${p.valor.nome}')">🗑️</button>
+      </div>
     </div>`).join('');
 }
 
@@ -799,6 +802,17 @@ async function aprovarBolao(chave, cod, nome) {
   const val={...cfg[0].valor, status:'aprovado'};
   await db.from('config').update({valor:val}).eq('chave',chave);
   showAlert('admin','success','✅ Bolão "'+nome+'" aprovado!');
+  loadSuperPanel();
+}
+
+async function excluirFamilia(cod, nome) {
+  if(!confirm('Excluir o bolão "'+nome+'" ('+cod+') e TODOS os dados? Isso não pode ser desfeito.')) return;
+  await db.from('palpites').delete().eq('familia', cod);
+  await db.from('jogos').delete().eq('familia', cod);
+  await db.from('usuarios').delete().eq('familia', cod);
+  await db.from('config').delete().eq('familia', cod);
+  await db.from('config').delete().eq('chave', 'familia_'+cod);
+  showAlert('admin','success','✅ Bolão "'+nome+'" excluído.');
   loadSuperPanel();
 }
 
@@ -923,7 +937,7 @@ async function checkPendentes() {
       const {data}=await db.from('config').select('*').eq('chave','familia_'+f.codigo);
       if(data&&data.length>0&&data[0].valor?.status==='aprovado') {
         currentFamilia=f;
-        document.getElementById('header-familia').textContent=f.nome+' · 2026';
+        
         if(u&&u.nome) { currentUser=u; entrarComoUser(u); }
         else { document.getElementById('badge-familia').textContent=f.nome; showStep('step-auth'); }
         return;
