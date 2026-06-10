@@ -361,17 +361,21 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);min-height
 
     <div class="rules-card" id="rules-display">
       <div class="card-title">Pontuação</div>
-      <div style="display:flex;gap:8px">
-        <div class="rule" style="flex:1;flex-direction:column;align-items:center;padding:6px;background:var(--w04);border-radius:8px;border:none">
-          <span class="rule-pts" id="rule-exato" style="font-size:16px;margin-bottom:3px">3</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 6px;background:var(--w04);border-radius:8px;">
+          <span class="rule-pts" id="rule-exato" style="font-size:18px;margin-bottom:3px">3</span>
           <span style="font-size:10px;color:var(--w40);text-align:center">Placar exato</span>
         </div>
-        <div class="rule" style="flex:1;flex-direction:column;align-items:center;padding:6px;background:var(--w04);border-radius:8px;border:none">
-          <span class="rule-pts" id="rule-resultado" style="font-size:16px;margin-bottom:3px">1</span>
-          <span style="font-size:10px;color:var(--w40);text-align:center">Acertou resultado</span>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 6px;background:var(--w04);border-radius:8px;">
+          <span class="rule-pts" id="rule-vencedor" style="font-size:18px;margin-bottom:3px;color:var(--grn)">1</span>
+          <span style="font-size:10px;color:var(--w40);text-align:center">Acertou vencedor</span>
         </div>
-        <div class="rule" style="flex:1;flex-direction:column;align-items:center;padding:6px;background:var(--w04);border-radius:8px;border:none">
-          <span class="rule-pts" id="rule-erro" style="font-size:16px;margin-bottom:3px">0</span>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 6px;background:var(--w04);border-radius:8px;">
+          <span class="rule-pts" id="rule-empate" style="font-size:18px;margin-bottom:3px;color:var(--amber)">1</span>
+          <span style="font-size:10px;color:var(--w40);text-align:center">Acertou empate</span>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 6px;background:var(--w04);border-radius:8px;">
+          <span class="rule-pts" id="rule-erro" style="font-size:18px;margin-bottom:3px;color:var(--w30)">0</span>
           <span style="font-size:10px;color:var(--w40);text-align:center">Errou</span>
         </div>
       </div>
@@ -457,7 +461,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);min-height
           <option value="K">Grupo K</option><option value="L">Grupo L</option>
           <option value="Oitavas">Oitavas</option><option value="Quartas">Quartas</option>
           <option value="Semifinal">Semifinal</option>
-          <option value="3º Lugar">3º Lugar</option><option value="Final">Final</option>
+          <option value="3º Lugar">3º Lugar</option>
+          <option value="Final">Final</option>
         </select>
       </div>
       <div class="card">
@@ -516,14 +521,19 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);min-height
         </label>
       </div>
       <div class="card-title">Regras de pontuação</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      <p style="font-size:11px;color:var(--w40);margin-bottom:10px">Placar exato de empate conta só como exato, não soma empate.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div class="field">
           <label>Placar exato</label>
           <input class="inp inp-sm" type="number" id="regra-exato" value="3" style="text-align:center;font-size:18px;font-weight:700;color:var(--gold)"/>
         </div>
         <div class="field">
-          <label>Acertou resultado</label>
-          <input class="inp inp-sm" type="number" id="regra-resultado" value="1" style="text-align:center;font-size:18px;font-weight:700;color:var(--grn)"/>
+          <label>Acertou vencedor</label>
+          <input class="inp inp-sm" type="number" id="regra-vencedor" value="1" style="text-align:center;font-size:18px;font-weight:700;color:var(--grn)"/>
+        </div>
+        <div class="field">
+          <label>Acertou empate</label>
+          <input class="inp inp-sm" type="number" id="regra-empate" value="1" style="text-align:center;font-size:18px;font-weight:700;color:var(--amber)"/>
         </div>
         <div class="field">
           <label>Errou</label>
@@ -757,12 +767,13 @@ async function loadJogosEPalpites(){
   container.innerHTML=['','',''].map(()=>'<div class="skeleton skel-match"></div>').join('');
 
   const {data:regrasData}=await db.from('config').select('*').eq('chave','regras_'+currentFamilia.codigo);
-  window.familiaRegras=regrasData&&regrasData.length>0?regrasData[0].valor:{exato:3,resultado:1,erro:0};
+  window.familiaRegras=regrasData&&regrasData.length>0?regrasData[0].valor:{exato:3,vencedor:1,empate:1,erro:0};
   const rr=window.familiaRegras;
   if(document.getElementById('rule-exato')){
     document.getElementById('rule-exato').textContent=rr.exato;
-    document.getElementById('rule-resultado').textContent=rr.resultado;
-    document.getElementById('rule-erro').textContent=rr.erro;
+    if(document.getElementById('rule-vencedor')) document.getElementById('rule-vencedor').textContent=rr.vencedor??rr.resultado??1;
+    if(document.getElementById('rule-empate'))   document.getElementById('rule-empate').textContent=rr.empate??1;
+    document.getElementById('rule-erro').textContent=rr.erro??0;
   }
 
   // jogos da família — cache 5min
@@ -813,7 +824,7 @@ function renderJogos(){
   const reg=window.familiaRegras||{exato:3,resultado:1,erro:0};
   document.getElementById('total-max').textContent='de '+(jogosCache.length*reg.exato)+' pts possíveis';
 
-  // sort: urgent first, then open, then locked
+  // sort: urgent first, then open, then locked — within same status sort by numero
   const sorted=[...jogosCache].sort((a,b)=>{
     const au=isUrgent(a.data_hora),bu=isUrgent(b.data_hora);
     const al=isLocked(a.data_hora),bl=isLocked(b.data_hora);
@@ -822,8 +833,24 @@ function renderJogos(){
     return a.numero-b.numero;
   });
 
-  let html='<div class="card"><div class="card-title">Seus palpites</div>';
+  // group by fase
+  function getFaseLabel(num){
+    if(num<=72) return '⚽ Fase de Grupos';
+    if(num<=89) return '⚔️ Oitavas de Final';
+    if(num<=97) return '🏅 Quartas de Final';
+    if(num<=101) return '🔥 Semifinal';
+    return '🏆 Final';
+  }
+
+  let html='';
+  let lastFase='';
   sorted.forEach(j=>{
+    const fase=getFaseLabel(j.numero);
+    if(fase!==lastFase){
+      if(lastFase!=='') html+='</div>'; // close previous card
+      html+=`<div class="card"><div class="card-title" style="color:var(--gold);font-size:12px">${fase}</div>`;
+      lastFase=fase;
+    }
     const locked=isLocked(j.data_hora);
     const urgent=!locked&&isUrgent(j.data_hora);
     const pal=palpitesCache[j.id]||{};
@@ -869,7 +896,7 @@ function renderJogos(){
       </div>
     </div>`;
   });
-  html+='</div>';
+  if(lastFase!=='') html+='</div>';
   container.innerHTML=html;
 
   // show saved badges for already-saved palpites
@@ -919,10 +946,16 @@ function updateSummary(){
 
 function calcPts(ph,pf,rh,rf,regras){
   if([ph,pf,rh,rf].some(v=>v===null||v===undefined||isNaN(v))) return null;
-  const r=regras||{exato:3,resultado:1,erro:0};
+  const r=regras||{exato:3,vencedor:1,empate:1,erro:0};
+  // placar exato (inclui empate exato) → sempre só exato, nunca soma empate
   if(ph===rh&&pf===rf) return r.exato;
+  const isEmpateReal = rh===rf;
+  const isEmpateP    = ph===pf;
+  // acertou que seria empate mas não o placar exato
+  if(isEmpateReal&&isEmpateP) return r.empate;
+  // acertou vencedor (sem empate)
   const res=v=>v>0?'h':v<0?'f':'d';
-  if(res(ph-pf)===res(rh-rf)) return r.resultado;
+  if(!isEmpateReal&&res(ph-pf)===res(rh-rf)) return r.vencedor;
   return r.erro;
 }
 
@@ -998,7 +1031,7 @@ async function loadRanking(){
   const {data:flagData}=await db.from('config').select('*').eq('chave','flag_acumular_'+currentFamilia.codigo);
   const acumular=flagData&&flagData.length>0?flagData[0].valor?.acumular!==false:true;
   const {data:regrasRank}=await db.from('config').select('*').eq('chave','regras_'+currentFamilia.codigo);
-  const familiaRegrasRanking=regrasRank&&regrasRank.length>0?regrasRank[0].valor:{exato:3,resultado:1,erro:0};
+  const familiaRegrasRanking=regrasRank&&regrasRank.length>0?regrasRank[0].valor:{exato:3,vencedor:1,empate:1,erro:0};
 
   const {data:jogosAtivos}=await db.from('jogos').select('*').eq('familia',currentFamilia.codigo).order('numero');
   const {data:pals}=await db.from('palpites').select('*').eq('familia',currentFamilia.codigo);
@@ -1332,9 +1365,16 @@ async function loadSuperPlacares(){
   const {data:jogos}=await query;
   if(!jogos||!jogos.length){el.innerHTML='<div class="empty-state">Nenhum jogo encontrado.</div>';btn.style.display='none';return;}
   btn.style.display='block';
-  el.innerHTML=jogos.map(j=>`
-    <div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.05)">
-      <div style="font-size:11px;color:var(--w40);margin-bottom:6px">J${j.numero} · ${j.grupo} · ${formatDate(j.data_hora)}</div>
+  // group by fase for display
+  let placHtml=''; let lastGrupo='';
+  jogos.forEach(j=>{
+    const grpLabel = j.fase==='Grupos'?`Grupo ${j.grupo}`:j.grupo;
+    if(grpLabel!==lastGrupo){
+      placHtml+=`<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--gold);padding:10px 0 6px;border-bottom:1px solid var(--gbor);margin-bottom:8px">${grpLabel}</div>`;
+      lastGrupo=grpLabel;
+    }
+    placHtml+=`<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.05)">
+      <div style="font-size:11px;color:var(--w40);margin-bottom:6px">J${j.numero} · ${formatDate(j.data_hora)}</div>
       <div style="display:flex;align-items:center;gap:8px">
         <div style="flex:1;font-size:13px;font-weight:700;text-align:right">${j.time_casa}</div>
         <div class="score-row" style="width:120px;flex-shrink:0">
@@ -1344,7 +1384,9 @@ async function loadSuperPlacares(){
         </div>
         <div style="flex:1;font-size:13px;font-weight:700">${j.time_fora}</div>
       </div>
-    </div>`).join('');
+    </div>`;
+  });
+  el.innerHTML=placHtml;
   el.setAttribute('data-ids',jogos.map(j=>j.id).join(','));
 }
 
@@ -1536,13 +1578,14 @@ async function removerJogoBtn(btn){
 
 async function salvarRegras(){
   const cod=adminFamiliaCtx.familia.codigo;
-  const exato=parseInt(document.getElementById('regra-exato').value);
-  const resultado=parseInt(document.getElementById('regra-resultado').value);
-  const erro=parseInt(document.getElementById('regra-erro').value);
-  if(isNaN(exato)||isNaN(resultado)||isNaN(erro)) return showAlert('admin','error','Preencha todos os valores.');
-  const {error}=await db.from('config').upsert({chave:'regras_'+cod,valor:{exato,resultado,erro},familia:cod},{onConflict:'chave'});
+  const exato   =parseInt(document.getElementById('regra-exato').value);
+  const vencedor=parseInt(document.getElementById('regra-vencedor').value);
+  const empate  =parseInt(document.getElementById('regra-empate').value);
+  const erro    =parseInt(document.getElementById('regra-erro').value);
+  if([exato,vencedor,empate,erro].some(isNaN)) return showAlert('admin','error','Preencha todos os valores.');
+  const {error}=await db.from('config').upsert({chave:'regras_'+cod,valor:{exato,vencedor,empate,erro},familia:cod},{onConflict:'chave'});
   if(error) return showAlert('admin','error','Erro: '+error.message);
-  showAlert('admin','success','✅ Regras salvas! Exato: '+exato+' · Resultado: '+resultado+' · Erro: '+erro);
+  showAlert('admin','success',`✅ Regras salvas! Exato:${exato} · Vencedor:${vencedor} · Empate:${empate} · Erro:${erro}`);
 }
 
 async function loadRegras(){
@@ -1550,9 +1593,10 @@ async function loadRegras(){
   const {data}=await db.from('config').select('*').eq('chave','regras_'+cod);
   if(data&&data.length>0&&data[0].valor){
     const r=data[0].valor;
-    document.getElementById('regra-exato').value=r.exato??3;
-    document.getElementById('regra-resultado').value=r.resultado??1;
-    document.getElementById('regra-erro').value=r.erro??0;
+    document.getElementById('regra-exato').value   = r.exato??3;
+    document.getElementById('regra-vencedor').value= r.vencedor??r.resultado??1;
+    document.getElementById('regra-empate').value  = r.empate??1;
+    document.getElementById('regra-erro').value    = r.erro??0;
   }
 }
 
