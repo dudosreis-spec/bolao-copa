@@ -1734,20 +1734,17 @@ async function exportarCSV(){
   const cod=adminFamiliaCtx.familia.codigo;
   const {data}=await db.from('usuarios').select('nome,email,cod_revenda,role,criado_em').eq('familia',cod).order('nome');
   if(!data||!data.length){showAlert('admin','info','Nenhum cadastro encontrado.');return;}
-  const csv=['Nome,Email,Cód Revenda,Papel,Data Cadastro',
-    ...data.map(u=>`"${u.nome}","${u.email||''}","${u.cod_revenda||''}","${u.role}","${u.criado_em?new Date(u.criado_em).toLocaleDateString('pt-BR'):''}"`
-  )].join('
-');
+  const rows1=data.map(u=>'"'+u.nome+'","'+(u.email||'')+'","'+(u.cod_revenda||'')+'","'+u.role+'","'+(u.criado_em?new Date(u.criado_em).toLocaleDateString('pt-BR'):'')+'"');
+  const csv=['Nome,Email,Cod Revenda,Papel,Data Cadastro',...rows1].join('\r\n');
   downloadCSV(csv, 'cadastros_'+cod+'.csv');
 }
 
 async function exportarCSVTodos(){
   const {data}=await db.from('usuarios').select('nome,email,cod_revenda,role,familia,criado_em').order('familia').order('nome');
   if(!data||!data.length){showAlert('admin','info','Nenhum cadastro encontrado.');return;}
-  const csv=['Família,Nome,Email,Cód Revenda,Papel,Data Cadastro',
-    ...data.map(u=>`"${u.familia}","${u.nome}","${u.email||''}","${u.cod_revenda||''}","${u.role}","${u.criado_em?new Date(u.criado_em).toLocaleDateString('pt-BR'):''}"`
-  )].join('
-');
+  const rows2=data.map(u=>'"'+u.familia+'","'+u.nome+'","'+(u.email||'')+'","'+(u.cod_revenda||'')+'","'+u.role+'","'+(u.criado_em?new Date(u.criado_em).toLocaleDateString('pt-BR'):'')+'"');
+  const csv2=['Familia,Nome,Email,Cod Revenda,Papel,Data Cadastro',...rows2].join('\r\n');
+  downloadCSV(csv2, 'cadastros_todos.csv');
   downloadCSV(csv, 'cadastros_todos.csv');
 }
 
