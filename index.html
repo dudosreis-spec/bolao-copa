@@ -381,6 +381,45 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);min-height
       </div>
     </div>
 
+    <!-- filtro de fase -->
+    <div class="card" style="padding:12px 14px;margin-bottom:10px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--w40);margin-bottom:5px">Fase</div>
+          <select class="select-inp" id="filtro-fase-user" onchange="filtrarJogos()" style="padding:8px 10px;font-size:12px">
+            <option value="">Todas as fases</option>
+            <option value="Grupos">Fase de Grupos</option>
+            <option value="Oitavas">Oitavas de Final</option>
+            <option value="Quartas">Quartas de Final</option>
+            <option value="Semifinal">Semifinal</option>
+            <option value="Final">Final</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--w40);margin-bottom:5px">Grupo</div>
+          <select class="select-inp" id="filtro-grupo-user" onchange="filtrarJogos()" style="padding:8px 10px;font-size:12px">
+            <option value="">Todos</option>
+            <option value="A">Grupo A</option><option value="B">Grupo B</option>
+            <option value="C">Grupo C</option><option value="D">Grupo D</option>
+            <option value="E">Grupo E</option><option value="F">Grupo F</option>
+            <option value="G">Grupo G</option><option value="H">Grupo H</option>
+            <option value="I">Grupo I</option><option value="J">Grupo J</option>
+            <option value="K">Grupo K</option><option value="L">Grupo L</option>
+            <option value="Oitavas">Oitavas</option>
+            <option value="Quartas">Quartas</option>
+            <option value="Semifinal">Semifinal</option>
+            <option value="3º Lugar">3º Lugar</option>
+            <option value="Final">Final</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button class="btn-sm" style="background:var(--gdim);border:1px solid var(--gbor);color:var(--gold);padding:5px 10px;border-radius:8px;font-size:11px" onclick="filtrarPendentes()">⏳ Sem palpite</button>
+        <button class="btn-sm" style="background:rgba(81,207,102,0.1);border:1px solid rgba(81,207,102,0.2);color:var(--grn);padding:5px 10px;border-radius:8px;font-size:11px" onclick="filtrarSalvos()">✅ Salvos</button>
+        <button class="btn-sm" style="background:var(--w06);border:1px solid rgba(255,255,255,0.1);color:var(--w40);padding:5px 10px;border-radius:8px;font-size:11px" onclick="limparFiltros()">✕ Limpar</button>
+      </div>
+    </div>
+
     <div id="jogos-container"></div>
 
     <div class="total-card">
@@ -824,8 +863,48 @@ function renderJogos(){
   const reg=window.familiaRegras||{exato:3,resultado:1,erro:0};
   document.getElementById('total-max').textContent='de '+(jogosCache.length*reg.exato)+' pts possíveis';
 
+  // aplicar filtros
+  let filtrados = [...jogosCache];
+  if(filtroFaseAtivo) {
+    filtrados = filtrados.filter(j => getFaseDoJogo(j.numero) === filtroFaseAtivo);
+  }
+  if(filtroGrupoAtivo) {
+    // grupo pode ser letra (A-L) ou fase (Oitavas, Quartas, etc)
+    const letras = ['A','B','C','D','E','F','G','H','I','J','K','L'];
+    if(letras.includes(filtroGrupoAtivo)) {
+      // filtrar por grupo na jogos_copa — usar numero range do grupo
+      // grupos são definidos pelo time_casa/fora que pertencem ao grupo
+      // mais simples: filtrar pelo numero do jogo que pertence ao grupo
+      // cada grupo tem 6 jogos consecutivos
+      const grupoIdx = letras.indexOf(filtroGrupoAtivo);
+      const inicio = grupoIdx * 6 + 1;
+      const fim = inicio + 5;
+      filtrados = filtrados.filter(j => j.numero >= inicio && j.numero <= fim);
+    } else {
+      // fase mata-mata
+      const faseMap = {
+        'Oitavas':{min:73,max:89}, 'Quartas':{min:90,max:97},
+        'Semifinal':{min:98,max:101}, '3º Lugar':{min:102,max:102},
+        'Final':{min:103,max:103}
+      };
+      const r = faseMap[filtroGrupoAtivo];
+      if(r) filtrados = filtrados.filter(j => j.numero >= r.min && j.numero <= r.max);
+    }
+  }
+  if(filtroStatusAtivo === 'pendente') {
+    filtrados = filtrados.filter(j => {
+      const pal = palpitesCache[j.id];
+      return !isLocked(j.data_hora) && (!pal || pal.casa === undefined);
+    });
+  } else if(filtroStatusAtivo === 'salvo') {
+    filtrados = filtrados.filter(j => {
+      const pal = palpitesCache[j.id];
+      return pal && pal.casa !== undefined;
+    });
+  }
+
   // sort: urgent first, then open, then locked — within same status sort by numero
-  const sorted=[...jogosCache].sort((a,b)=>{
+  const sorted=[...filtrados].sort((a,b)=>{
     const au=isUrgent(a.data_hora),bu=isUrgent(b.data_hora);
     const al=isLocked(a.data_hora),bl=isLocked(b.data_hora);
     if(au&&!bu) return -1;if(!au&&bu) return 1;
@@ -840,6 +919,12 @@ function renderJogos(){
     if(num<=97) return '🏅 Quartas de Final';
     if(num<=101) return '🔥 Semifinal';
     return '🏆 Final';
+  }
+
+  if(!sorted.length){
+    const container2=document.getElementById('jogos-container');
+    container2.innerHTML='<div class="card"><div class="empty-state" style="padding:20px">Nenhum jogo encontrado para esse filtro.</div></div>';
+    updateSummary();return;
   }
 
   let html='';
@@ -1626,6 +1711,49 @@ async function checkPendentes(){
   const n=(data||[]).filter(c=>c.valor?.status==='pendente').length;
   const cnt=document.getElementById('pending-count');
   cnt.textContent=n;cnt.style.display=n>0?'inline-block':'none';
+}
+
+// ── FILTROS ──
+let filtroFaseAtivo = '';
+let filtroGrupoAtivo = '';
+let filtroStatusAtivo = ''; // 'pendente' | 'salvo' | ''
+
+function getFaseDoJogo(num){
+  if(num<=72) return 'Grupos';
+  if(num<=89) return 'Oitavas';
+  if(num<=97) return 'Quartas';
+  if(num<=101) return 'Semifinal';
+  return 'Final';
+}
+
+function filtrarJogos(){
+  filtroFaseAtivo  = document.getElementById('filtro-fase-user')?.value || '';
+  filtroGrupoAtivo = document.getElementById('filtro-grupo-user')?.value || '';
+  filtroStatusAtivo = '';
+  renderJogos();
+}
+
+function filtrarPendentes(){
+  filtroStatusAtivo='pendente';
+  filtroFaseAtivo=''; filtroGrupoAtivo='';
+  if(document.getElementById('filtro-fase-user'))  document.getElementById('filtro-fase-user').value='';
+  if(document.getElementById('filtro-grupo-user')) document.getElementById('filtro-grupo-user').value='';
+  renderJogos();
+}
+
+function filtrarSalvos(){
+  filtroStatusAtivo='salvo';
+  filtroFaseAtivo=''; filtroGrupoAtivo='';
+  if(document.getElementById('filtro-fase-user'))  document.getElementById('filtro-fase-user').value='';
+  if(document.getElementById('filtro-grupo-user')) document.getElementById('filtro-grupo-user').value='';
+  renderJogos();
+}
+
+function limparFiltros(){
+  filtroFaseAtivo=''; filtroGrupoAtivo=''; filtroStatusAtivo='';
+  if(document.getElementById('filtro-fase-user'))  document.getElementById('filtro-fase-user').value='';
+  if(document.getElementById('filtro-grupo-user')) document.getElementById('filtro-grupo-user').value='';
+  renderJogos();
 }
 
 // ── CACHE LOCAL ──
