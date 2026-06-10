@@ -322,6 +322,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);min-height
       <div class="card-title">Criar minha conta</div>
       <div class="field"><label>Nome</label><input class="inp" type="text" id="cad-nome" placeholder="Como aparecer no ranking..."/><div class="field-error" id="err-cad-nome"></div></div>
       <div class="field"><label>Email</label><input class="inp" type="email" id="cad-email" placeholder="seu@email.com"/><div class="field-error" id="err-cad-email"></div></div>
+      <div class="field" id="field-revenda" style="display:none"><label>Cód. Revenda</label><input class="inp" type="text" id="cad-revenda" placeholder="Código de revenda..."/></div>
       <div class="field"><label>Senha</label><input class="inp" type="password" id="cad-senha" placeholder="Crie uma senha..." oninput="checkSenha()"/></div>
       <div class="field"><label>Confirmar</label><input class="inp" type="password" id="cad-senha2" placeholder="Repita..." oninput="checkSenha()"/><div class="field-error" id="err-cad-senha"></div></div>
       <button class="btn btn-gold" onclick="fazerCadastro()">Criar minha conta</button>
@@ -374,10 +375,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);min-height
           <span class="rule-pts" id="rule-empate" style="font-size:18px;margin-bottom:3px;color:var(--amber)">1</span>
           <span style="font-size:10px;color:var(--w40);text-align:center">Acertou empate</span>
         </div>
-        <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 6px;background:var(--w04);border-radius:8px;">
-          <span class="rule-pts" id="rule-erro" style="font-size:18px;margin-bottom:3px;color:var(--w30)">0</span>
-          <span style="font-size:10px;color:var(--w40);text-align:center">Errou</span>
-        </div>
+
       </div>
     </div>
 
@@ -480,6 +478,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);min-height
       <div class="card">
         <div class="card-title">Todos os bolões</div>
         <div id="todos-boloes-list"><div class="loading-text"><span class="spinner"></span></div></div>
+        <button class="btn btn-out" onclick="exportarCSVTodos()" style="margin-top:8px">📥 Exportar todos os cadastros (CSV)</button>
       </div>
     </div>
     <div id="super-placares" style="display:none">
@@ -574,12 +573,26 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);min-height
           <label>Acertou empate</label>
           <input class="inp inp-sm" type="number" id="regra-empate" value="1" style="text-align:center;font-size:18px;font-weight:700;color:var(--amber)"/>
         </div>
-        <div class="field">
-          <label>Errou</label>
-          <input class="inp inp-sm" type="number" id="regra-erro" value="0" style="text-align:center;font-size:18px;font-weight:700"/>
-        </div>
       </div>
       <button class="btn btn-gold" onclick="salvarRegras()">💾 Salvar regras</button>
+    </div>
+
+    <!-- config cadastro -->
+    <div class="card">
+      <div class="card-title">Configuração de cadastro</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0">
+        <div>
+          <div style="font-size:14px;font-weight:600">Solicitar Cód. Revenda</div>
+          <div style="font-size:11px;color:var(--w40);margin-top:2px">Exige código de revenda no cadastro</div>
+        </div>
+        <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
+          <input type="checkbox" id="flag-revenda" style="opacity:0;width:0;height:0" onchange="salvarFlagRevenda(this.checked)">
+          <span id="toggle-revenda-span" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.2);border-radius:24px;transition:0.3s">
+            <span style="position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:0.3s;display:block" id="toggle-revenda-knob"></span>
+          </span>
+        </label>
+      </div>
+      <button class="btn btn-out" onclick="exportarCSV()" style="margin-top:8px">📥 Exportar cadastros (CSV)</button>
     </div>
   </div>
 </div>
@@ -703,6 +716,11 @@ async function entrarCodigo(){
   currentFamilia={codigo:cod,nome:f.nome};
   try{localStorage.setItem('bolao_familia',JSON.stringify(currentFamilia));}catch(e){}
   document.getElementById('badge-familia').textContent=currentFamilia.nome;
+  // verificar se revenda está ativa
+  const {data:revData}=await db.from('config').select('*').eq('chave','flag_revenda_'+cod);
+  const revendaAtiva=revData&&revData.length>0?revData[0].valor?.revenda===true:false;
+  const fieldRevenda=document.getElementById('field-revenda');
+  if(fieldRevenda) fieldRevenda.style.display=revendaAtiva?'block':'none';
   showStep('step-auth');
 }
 
@@ -748,7 +766,8 @@ async function fazerCadastro(){
   if(exist&&exist.length>0){setFieldError('err-cad-nome','Nome já em uso nesse bolão');return;}
   const {data:existEmail}=await db.from('usuarios').select('id').eq('email',email).eq('familia',currentFamilia.codigo);
   if(existEmail&&existEmail.length>0){setFieldError('err-cad-email','Email já cadastrado nesse bolão');return;}
-  const {error}=await db.from('usuarios').insert({nome,email,senha,familia:currentFamilia.codigo,role:'user'});
+  const revenda=document.getElementById('cad-revenda')?.value?.trim()||null;
+  const {error}=await db.from('usuarios').insert({nome,email,senha,cod_revenda:revenda,familia:currentFamilia.codigo,role:'user'});
   if(error) return showAlert('palpite','error','Erro: '+error.message);
   showAlert('palpite','success','✅ Conta criada!');
   setTimeout(()=>entrarComoUser({nome,email,senha,role:'user'}),600);
@@ -1031,17 +1050,13 @@ function updateSummary(){
 
 function calcPts(ph,pf,rh,rf,regras){
   if([ph,pf,rh,rf].some(v=>v===null||v===undefined||isNaN(v))) return null;
-  const r=regras||{exato:3,vencedor:1,empate:1,erro:0};
-  // placar exato (inclui empate exato) → sempre só exato, nunca soma empate
+  const r=regras||{exato:3,vencedor:1,empate:1};
   if(ph===rh&&pf===rf) return r.exato;
-  const isEmpateReal = rh===rf;
-  const isEmpateP    = ph===pf;
-  // acertou que seria empate mas não o placar exato
+  const isEmpateReal=rh===rf, isEmpateP=ph===pf;
   if(isEmpateReal&&isEmpateP) return r.empate;
-  // acertou vencedor (sem empate)
   const res=v=>v>0?'h':v<0?'f':'d';
   if(!isEmpateReal&&res(ph-pf)===res(rh-rf)) return r.vencedor;
-  return r.erro;
+  return 0; // errou sempre = 0
 }
 
 function calcTotal(){
@@ -1151,20 +1166,28 @@ async function loadRanking(){
 
   const palsArr=pals||[];
   const ranked=allUsers.map(u=>{
-    let total=0,exatos=0,resultados=0,det=[];
+    let total=0,exatos=0,resultados=0,empates=0,det=[];
     jogosParaRanking.forEach(j=>{
       const p=palsArr.find(x=>x.nome===u.nome&&x.jogo_id===j.id);
       if(!p) return;
       const pts=calcPts(p.gols_casa,p.gols_fora,j.placar_casa,j.placar_fora,familiaRegrasRanking);
       if(pts!==null){
         total+=pts;
-        if(pts===familiaRegrasRanking.exato) exatos++;
-        else if(pts===familiaRegrasRanking.resultado) resultados++;
+        const isEmpateReal=j.placar_casa===j.placar_fora;
+        const isEmpateP=p.gols_casa===p.gols_fora;
+        if(p.gols_casa===j.placar_casa&&p.gols_fora===j.placar_fora) exatos++;
+        else if(isEmpateReal&&isEmpateP) empates++;
+        else if(pts>0) resultados++;
         det.push('J'+j.numero+':'+pts+'pt');
       } else det.push('J'+j.numero+':'+p.gols_casa+'x'+p.gols_fora);
     });
-    return{nome:u.nome,total,exatos,resultados,det};
-  }).sort((a,b)=>b.total-a.total||b.exatos-a.exatos);
+    return{nome:u.nome,total,exatos,resultados,empates,det};
+  }).sort((a,b)=>
+    b.total-a.total ||
+    b.exatos-a.exatos ||
+    b.resultados-a.resultados ||
+    b.empates-a.empates
+  );
 
   const medals=['🥇','🥈','🥉'],cls=['gold','silver','bronze'];
   let html='<div class="card-title">Classificação</div>';
@@ -1183,6 +1206,7 @@ async function loadRanking(){
         <div class="rank-chips">
           ${r.exatos>0?`<span class="rank-chip chip-exact">⭐${r.exatos}</span>`:''}
           ${r.resultados>0?`<span class="rank-chip chip-winner">✓${r.resultados}</span>`:''}
+          ${r.empates>0?`<span class="rank-chip" style="background:rgba(255,169,77,0.12);color:var(--amber)">≡${r.empates}</span>`:''}
         </div>
       </div>
     </div>`;
@@ -1563,6 +1587,7 @@ async function loadFamiliaAdmin(){
   await loadAdminJogos();
   await loadFlagAcumular();
   await loadRegras();
+  await loadFlagRevenda();
 }
 
 async function loadAdminJogos(){
@@ -1666,11 +1691,10 @@ async function salvarRegras(){
   const exato   =parseInt(document.getElementById('regra-exato').value);
   const vencedor=parseInt(document.getElementById('regra-vencedor').value);
   const empate  =parseInt(document.getElementById('regra-empate').value);
-  const erro    =parseInt(document.getElementById('regra-erro').value);
-  if([exato,vencedor,empate,erro].some(isNaN)) return showAlert('admin','error','Preencha todos os valores.');
-  const {error}=await db.from('config').upsert({chave:'regras_'+cod,valor:{exato,vencedor,empate,erro},familia:cod},{onConflict:'chave'});
+  if([exato,vencedor,empate].some(isNaN)) return showAlert('admin','error','Preencha todos os valores.');
+  const {error}=await db.from('config').upsert({chave:'regras_'+cod,valor:{exato,vencedor,empate},familia:cod},{onConflict:'chave'});
   if(error) return showAlert('admin','error','Erro: '+error.message);
-  showAlert('admin','success',`✅ Regras salvas! Exato:${exato} · Vencedor:${vencedor} · Empate:${empate} · Erro:${erro}`);
+  showAlert('admin','success',`✅ Regras salvas! Exato:${exato} · Vencedor:${vencedor} · Empate:${empate}`);
 }
 
 async function loadRegras(){
@@ -1681,8 +1705,59 @@ async function loadRegras(){
     document.getElementById('regra-exato').value   = r.exato??3;
     document.getElementById('regra-vencedor').value= r.vencedor??r.resultado??1;
     document.getElementById('regra-empate').value  = r.empate??1;
-    document.getElementById('regra-erro').value    = r.erro??0;
   }
+}
+
+async function salvarFlagRevenda(val){
+  const cod=adminFamiliaCtx.familia.codigo;
+  await db.from('config').upsert({chave:'flag_revenda_'+cod,valor:{revenda:val},familia:cod},{onConflict:'chave'});
+  updateToggleRevendaUI(val);
+  showAlert('admin',val?'success':'info',val?'✅ Cód. Revenda ativado no cadastro.':'Cód. Revenda desativado.');
+}
+
+async function loadFlagRevenda(){
+  const cod=adminFamiliaCtx.familia.codigo;
+  const {data}=await db.from('config').select('*').eq('chave','flag_revenda_'+cod);
+  const val=data&&data.length>0?data[0].valor?.revenda===true:false;
+  document.getElementById('flag-revenda').checked=val;
+  updateToggleRevendaUI(val);
+}
+
+function updateToggleRevendaUI(val){
+  const span=document.getElementById('toggle-revenda-span');
+  const knob=document.getElementById('toggle-revenda-knob');
+  if(span&&knob){span.style.background=val?'var(--gold)':'rgba(255,255,255,0.2)';knob.style.transform=val?'translateX(20px)':'translateX(0)';}
+}
+
+async function exportarCSV(){
+  if(!adminFamiliaCtx) return;
+  const cod=adminFamiliaCtx.familia.codigo;
+  const {data}=await db.from('usuarios').select('nome,email,cod_revenda,role,criado_em').eq('familia',cod).order('nome');
+  if(!data||!data.length){showAlert('admin','info','Nenhum cadastro encontrado.');return;}
+  const csv=['Nome,Email,Cód Revenda,Papel,Data Cadastro',
+    ...data.map(u=>`"${u.nome}","${u.email||''}","${u.cod_revenda||''}","${u.role}","${u.criado_em?new Date(u.criado_em).toLocaleDateString('pt-BR'):''}"`
+  )].join('
+');
+  downloadCSV(csv, 'cadastros_'+cod+'.csv');
+}
+
+async function exportarCSVTodos(){
+  const {data}=await db.from('usuarios').select('nome,email,cod_revenda,role,familia,criado_em').order('familia').order('nome');
+  if(!data||!data.length){showAlert('admin','info','Nenhum cadastro encontrado.');return;}
+  const csv=['Família,Nome,Email,Cód Revenda,Papel,Data Cadastro',
+    ...data.map(u=>`"${u.familia}","${u.nome}","${u.email||''}","${u.cod_revenda||''}","${u.role}","${u.criado_em?new Date(u.criado_em).toLocaleDateString('pt-BR'):''}"`
+  )].join('
+');
+  downloadCSV(csv, 'cadastros_todos.csv');
+}
+
+function downloadCSV(csv, filename){
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=filename;a.click();
+  URL.revokeObjectURL(url);
+  showAlert('admin','success','✅ CSV exportado: '+filename);
 }
 
 async function salvarFlagAcumular(val){
