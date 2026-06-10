@@ -765,19 +765,41 @@ async function loadJogosEPalpites(){
     document.getElementById('rule-erro').textContent=rr.erro;
   }
 
-  const {data:jogosLocal}=await db.from('jogos').select('*').eq('familia',currentFamilia.codigo).eq('visivel',true).order('numero',{ascending:true});
-  const numeros=(jogosLocal||[]).map(j=>j.numero);
-  let jogos=jogosLocal||[];
-  if(numeros.length>0){
-    const {data:globais}=await db.from('jogos_copa').select('*').in('numero',numeros);
-    jogos=jogos.map(j=>{const g=(globais||[]).find(x=>x.numero===j.numero);return g?{...j,placar_casa:g.placar_casa,placar_fora:g.placar_fora}:j;});
+  // jogos da família — cache 5min
+  const cacheKeyJogos = 'jogos_'+currentFamilia.codigo;
+  let jogosLocal = cacheGet(cacheKeyJogos);
+  if(!jogosLocal) {
+    const {data} = await db.from('jogos').select('*').eq('familia',currentFamilia.codigo).eq('visivel',true).order('numero',{ascending:true});
+    jogosLocal = data || [];
+    cacheSet(cacheKeyJogos, jogosLocal);
   }
-  jogosCache=jogos||[];
 
-  palpitesCache={};
+  const numeros = jogosLocal.map(j=>j.numero);
+  let jogos = jogosLocal;
+  if(numeros.length>0){
+    // placares globais — cache 2min (atualiza mais rápido)
+    const cacheKeyGlobais = 'globais_'+numeros.join('_');
+    let globais = cacheGet(cacheKeyGlobais, 2*60*1000);
+    if(!globais) {
+      const {data} = await db.from('jogos_copa').select('*').in('numero',numeros);
+      globais = data || [];
+      cacheSet(cacheKeyGlobais, globais);
+    }
+    jogos = jogos.map(j=>{const g=globais.find(x=>x.numero===j.numero);return g?{...j,placar_casa:g.placar_casa,placar_fora:g.placar_fora}:j;});
+  }
+  jogosCache = jogos;
+
+  // palpites do usuário — cache 3min
+  palpitesCache = {};
   if(currentUser){
-    const {data:pals}=await db.from('palpites').select('*').eq('nome',currentUser.nome).eq('familia',currentFamilia.codigo);
-    (pals||[]).forEach(p=>{palpitesCache[p.jogo_id]={casa:p.gols_casa,fora:p.gols_fora};});
+    const cacheKeyPals = 'palpites_'+currentFamilia.codigo+'_'+currentUser.nome;
+    let pals = cacheGet(cacheKeyPals, 3*60*1000);
+    if(!pals) {
+      const {data} = await db.from('palpites').select('*').eq('nome',currentUser.nome).eq('familia',currentFamilia.codigo);
+      pals = data || [];
+      cacheSet(cacheKeyPals, pals);
+    }
+    pals.forEach(p=>{palpitesCache[p.jogo_id]={casa:p.gols_casa,fora:p.gols_fora};});
   }
   renderJogos();
 }
@@ -934,6 +956,8 @@ async function salvarPalpites(){
     else{
       ok++;
       palpitesCache[j.id]={casa:parseInt(h),fora:parseInt(f)};
+      // invalidar cache de palpites para forçar reload na próxima visita
+      cacheClear('palpites_'+currentFamilia.codigo+'_'+currentUser.nome);
       const el=document.getElementById('saved_'+j.id);
       if(el){el.textContent='✓ Salvo';el.style.display='inline';}
     }
@@ -958,6 +982,18 @@ async function loadRanking(){
 
   const container=document.getElementById('ranking-container');
   container.innerHTML=['','','',''].map(()=>'<div class="skeleton skel-rank"></div>').join('');
+
+  // ranking cache 2min
+  const cacheKeyRanking = 'ranking_'+currentFamilia.codigo;
+  const cachedRanking = cacheGet(cacheKeyRanking, 2*60*1000);
+  if(cachedRanking) {
+    container.innerHTML = cachedRanking.html;
+    if(cachedRanking.palpitesHtml) {
+      document.getElementById('palpites-container').style.display='block';
+      document.getElementById('palpites-wrap').innerHTML = cachedRanking.palpitesHtml;
+    }
+    return;
+  }
 
   const {data:flagData}=await db.from('config').select('*').eq('chave','flag_acumular_'+currentFamilia.codigo);
   const acumular=flagData&&flagData.length>0?flagData[0].valor?.acumular!==false:true;
@@ -1035,6 +1071,7 @@ async function loadRanking(){
   });
   container.innerHTML=html;
 
+  let palpitesHtml = '';
   if(jogosParaRanking.length){
     document.getElementById('palpites-container').style.display='block';
     let t=`<table class="pal-table"><thead><tr><th style="text-align:left">Nome</th>${jogosParaRanking.map(j=>`<th>J${j.numero}</th>`).join('')}</tr></thead><tbody>`;
@@ -1047,8 +1084,12 @@ async function loadRanking(){
       t+=`</tr>`;
     });
     t+='</tbody></table>';
+    palpitesHtml = t;
     document.getElementById('palpites-wrap').innerHTML=t;
   }
+
+  // salvar ranking no cache
+  cacheSet('ranking_'+currentFamilia.codigo, {html, palpitesHtml}, 2*60*1000);
 }
 
 // ── ADMIN LOGIN ──
@@ -1322,6 +1363,9 @@ async function salvarSuperPlacares(){
     if(error) erros++;else ok++;
   }
   btn.disabled=false;btn.innerHTML='🚀 Publicar placares';
+  // invalidar cache de placares e ranking globais
+  cacheClearPrefix('globais_');
+  cacheClearPrefix('ranking_');
   if(erros) showAlert('admin','error',`${erros} erro(s) ao salvar.`);
   else showAlert('admin','success',`✅ ${ok} placar(es) publicados! Ranking atualizado para todas as famílias.`);
 }
@@ -1474,6 +1518,10 @@ async function salvarJogosSelecionados(){
       }
     }
   }
+  // invalidar cache de jogos para todas as sessões
+  cacheClearPrefix('jogos_'+cod);
+  cacheClearPrefix('globais_');
+  cacheClearPrefix('ranking_'+cod);
   showAlert('admin','success','✅ Jogos salvos! '+selectedNums.length+' visíveis.');
   loadAdminJogos();loadJogosSelector();
 }
@@ -1534,6 +1582,31 @@ async function checkPendentes(){
   const n=(data||[]).filter(c=>c.valor?.status==='pendente').length;
   const cnt=document.getElementById('pending-count');
   cnt.textContent=n;cnt.style.display=n>0?'inline-block':'none';
+}
+
+// ── CACHE LOCAL ──
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+
+function cacheSet(key, data) {
+  try { localStorage.setItem('cache_'+key, JSON.stringify({data, ts: Date.now()})); } catch(e) {}
+}
+function cacheGet(key, ttl) {
+  try {
+    const raw = localStorage.getItem('cache_'+key);
+    if(!raw) return null;
+    const {data, ts} = JSON.parse(raw);
+    if(Date.now() - ts > (ttl||CACHE_TTL)) return null;
+    return data;
+  } catch(e) { return null; }
+}
+function cacheClear(key) {
+  try { localStorage.removeItem('cache_'+key); } catch(e) {}
+}
+function cacheClearPrefix(prefix) {
+  try {
+    Object.keys(localStorage).filter(k=>k.startsWith('cache_'+prefix))
+      .forEach(k=>localStorage.removeItem(k));
+  } catch(e) {}
 }
 
 // ── INIT ──
