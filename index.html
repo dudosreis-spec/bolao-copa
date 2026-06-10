@@ -831,11 +831,14 @@ async function loadJogosEPalpites(){
     document.getElementById('rule-exato').textContent=rr.exato;
     if(document.getElementById('rule-vencedor')) document.getElementById('rule-vencedor').textContent=rr.vencedor??rr.resultado??1;
     if(document.getElementById('rule-empate'))   document.getElementById('rule-empate').textContent=rr.empate??1;
-    document.getElementById('rule-erro').textContent=rr.erro??0;
+    if(document.getElementById('rule-erro')) document.getElementById('rule-erro').textContent=rr.erro??0;
   }
 
   // jogos da família — cache 5min
   const cacheKeyJogos = 'jogos_'+currentFamilia.codigo;
+  // limpar cache se vier vazio (fix para sessões anteriores com cache inválido)
+  const cachedJogosRaw = cacheGet(cacheKeyJogos);
+  if(cachedJogosRaw && cachedJogosRaw.length === 0) cacheClear(cacheKeyJogos);
   let jogosLocal = cacheGet(cacheKeyJogos);
   if(!jogosLocal) {
     const {data} = await db.from('jogos').select('*').eq('familia',currentFamilia.codigo).eq('visivel',true).order('numero',{ascending:true});
