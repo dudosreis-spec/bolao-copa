@@ -212,6 +212,20 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);min-height
 .jogo-check-date{font-size:10px;color:var(--w30);}
 .fase-group{margin-bottom:8px;}
 .select-all-btn{font-size:10px;color:var(--gold);background:none;border:none;cursor:pointer;font-weight:700;}
+.class-table{width:100%;border-collapse:collapse;margin-bottom:12px;}
+.class-table th{font-size:10px;text-transform:uppercase;color:var(--w40);padding:6px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.1);}
+.class-table td{padding:8px 4px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px;}
+.class-table td.team-col{text-align:left;display:flex;align-items:center;gap:8px;}
+.class-table tr.classificado td{color:#fff;}
+.class-table tr.eliminado td{color:var(--w30);}
+.class-table tr.classificado{background:rgba(81,207,102,0.05);}
+.pos-badge{display:inline-block;width:20px;height:20px;border-radius:50%;font-size:10px;font-weight:800;text-align:center;line-height:20px;}
+.pos-1{background:rgba(255,215,0,0.2);color:var(--gold);}
+.pos-2{background:rgba(255,255,255,0.1);color:#fff;}
+.pos-3{background:rgba(255,169,77,0.15);color:var(--amber);}
+.pos-other{background:rgba(255,255,255,0.05);color:var(--w30);}
+.pos-select{background:var(--w08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;padding:3px 6px;font-size:12px;font-weight:700;outline:none;}
+.pos-select option{background:#1a3a2a;}
 .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-right:6px;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .loading-text{color:var(--w40);font-size:14px;text-align:center;padding:24px;}
@@ -413,6 +427,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);min-height
     <div class="tab-row">
       <button class="tab-btn active" id="stab-boloes" onclick="switchSuperTab('boloes')">Bolões</button>
       <button class="tab-btn" id="stab-placares" onclick="switchSuperTab('placares')">Placares</button>
+      <button class="tab-btn" id="stab-grupos" onclick="switchSuperTab('grupos')">Grupos</button>
     </div>
     <div id="super-boloes">
       <div class="card">
@@ -450,6 +465,23 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);min-height
         <div id="super-placares-list"><div class="loading-text"><span class="spinner"></span></div></div>
         <button class="btn btn-gold" id="btn-super-salvar" onclick="salvarSuperPlacares()" style="margin-top:8px;display:none">🚀 Publicar placares</button>
       </div>
+    </div>
+
+    <!-- aba grupos -->
+    <div id="super-grupos" style="display:none">
+      <div class="card card-gold">
+        <div class="card-title card-title-gold">Selecionar grupo</div>
+        <select class="select-inp" id="sel-grupo-class" onchange="loadClassificacaoGrupo()">
+          <option value="">Selecione um grupo...</option>
+          <option value="A">Grupo A</option><option value="B">Grupo B</option>
+          <option value="C">Grupo C</option><option value="D">Grupo D</option>
+          <option value="E">Grupo E</option><option value="F">Grupo F</option>
+          <option value="G">Grupo G</option><option value="H">Grupo H</option>
+          <option value="I">Grupo I</option><option value="J">Grupo J</option>
+          <option value="K">Grupo K</option><option value="L">Grupo L</option>
+        </select>
+      </div>
+      <div id="grupo-class-container"></div>
     </div>
   </div>
 
@@ -1064,11 +1096,185 @@ function adminLogout(){
 
 // ── SUPER ADMIN ──
 function switchSuperTab(tab){
-  document.getElementById('stab-boloes').classList.toggle('active',tab==='boloes');
-  document.getElementById('stab-placares').classList.toggle('active',tab==='placares');
-  document.getElementById('super-boloes').style.display=tab==='boloes'?'block':'none';
-  document.getElementById('super-placares').style.display=tab==='placares'?'block':'none';
+  ['boloes','placares','grupos'].forEach(t=>{
+    document.getElementById('stab-'+t).classList.toggle('active',t===tab);
+    document.getElementById('super-'+t).style.display=t===tab?'block':'none';
+  });
   if(tab==='placares') loadSuperPlacares();
+  if(tab==='grupos') document.getElementById('grupo-class-container').innerHTML='';
+}
+
+async function loadClassificacaoGrupo(){
+  const grupo = document.getElementById('sel-grupo-class').value;
+  const container = document.getElementById('grupo-class-container');
+  if(!grupo){container.innerHTML='';return;}
+  container.innerHTML='<div class="loading-text"><span class="spinner"></span> Calculando...</div>';
+
+  // buscar jogos do grupo
+  const {data:jogos} = await db.from('jogos_copa').select('*').eq('grupo',grupo).eq('fase','Grupos');
+  if(!jogos||!jogos.length){container.innerHTML='<div class="empty-state">Nenhum jogo encontrado para este grupo.</div>';return;}
+
+  // buscar times únicos
+  const timesMap = {};
+  jogos.forEach(j=>{
+    if(!timesMap[j.time_casa]) timesMap[j.time_casa]={nome:j.time_casa,pais:j.pais_casa,pts:0,sg:0,gp:0,gc:0,j:0};
+    if(!timesMap[j.time_fora]) timesMap[j.time_fora]={nome:j.time_fora,pais:j.pais_fora,pts:0,sg:0,gp:0,gc:0,j:0};
+  });
+
+  // calcular pontos e saldo
+  jogos.forEach(j=>{
+    const {placar_casa:ph, placar_fora:pf} = j;
+    if(ph===null||ph===undefined||pf===null||pf===undefined) return;
+    const casa = timesMap[j.time_casa];
+    const fora = timesMap[j.time_fora];
+    casa.j++; fora.j++;
+    casa.gp+=ph; casa.gc+=pf; casa.sg+=ph-pf;
+    fora.gp+=pf; fora.gc+=ph; fora.sg+=pf-ph;
+    if(ph>pf){casa.pts+=3;}
+    else if(ph===pf){casa.pts+=1;fora.pts+=1;}
+    else{fora.pts+=3;}
+  });
+
+  // ordenar: pts → sg → gp
+  const times = Object.values(timesMap).sort((a,b)=>b.pts-a.pts||b.sg-a.sg||b.gp-a.gp);
+
+  // buscar classificados já salvos para este grupo
+  const {data:classAtual} = await db.from('classificados').select('*').eq('grupo',grupo);
+  const classMap = {};
+  (classAtual||[]).forEach(c=>classMap[c.posicao]=c.time_nome);
+
+  // montar HTML
+  const jogosComPlacar = jogos.filter(j=>j.placar_casa!==null&&j.placar_casa!==undefined).length;
+  const totalJogos = jogos.length;
+
+  let html = `<div class="card">
+    <div class="card-title">Grupo ${grupo} — ${jogosComPlacar}/${totalJogos} jogos concluídos</div>`;
+
+  // tabela calculada
+  html += `<table class="class-table">
+    <thead><tr><th>#</th><th style="text-align:left">Time</th><th>J</th><th>Pts</th><th>SG</th><th>GP</th></tr></thead>
+    <tbody>`;
+
+  times.forEach((t,i)=>{
+    const pos=i+1;
+    const cls=pos<=2?'classificado':'eliminado';
+    const posCls=pos===1?'pos-1':pos===2?'pos-2':pos===3?'pos-3':'pos-other';
+    html+=`<tr class="${cls}">
+      <td><span class="pos-badge ${posCls}">${pos}</span></td>
+      <td style="text-align:left">
+        <div style="display:flex;align-items:center;gap:6px">
+          <img src="https://flagcdn.com/w40/${t.pais}.png" style="width:24px;height:16px;border-radius:2px;object-fit:cover" onerror="this.style.display='none'">
+          <span style="font-weight:${pos<=2?700:400}">${t.nome}</span>
+        </div>
+      </td>
+      <td>${t.j}</td>
+      <td style="font-weight:700;color:${pos<=2?'var(--grn)':'var(--w30)'}">${t.pts}</td>
+      <td>${t.sg>0?'+'+t.sg:t.sg}</td>
+      <td>${t.gp}</td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+
+  // confirmação de classificados
+  html += `<div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;margin-top:4px">
+    <div class="card-title">Confirmar classificados</div>
+    <p style="font-size:12px;color:var(--w40);margin-bottom:12px">Verifique e ajuste se necessário (critérios de desempate).</p>`;
+
+  [1,2,3].forEach(pos=>{
+    const sugerido=times[pos-1];
+    const atual=classMap[pos]||sugerido?.nome||'';
+    const posCls=pos===1?'pos-1':pos===2?'pos-2':'pos-3';
+    const posLabel=pos===1?'🥇 1º':pos===2?'🥈 2º':'🥉 3º';
+    html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span class="pos-badge ${posCls}" style="width:28px;height:28px;line-height:28px;font-size:12px">${pos}º</span>
+      <select class="pos-select" id="class_${grupo}_${pos}" style="flex:1;padding:8px 10px;font-size:13px;border-radius:8px">
+        ${times.map(t=>`<option value="${t.nome}|${t.pais}" ${(atual===t.nome)?'selected':''}>${t.nome}</option>`).join('')}
+      </select>
+    </div>`;
+  });
+
+  html += `</div>
+    <button class="btn btn-gold" onclick="salvarClassificados('${grupo}')">✅ Confirmar classificados do Grupo ${grupo}</button>
+  </div>`;
+
+  container.innerHTML = html;
+}
+
+async function salvarClassificados(grupo){
+  const times_data = {};
+  const {data:jogos} = await db.from('jogos_copa').select('*').eq('grupo',grupo).eq('fase','Grupos');
+  const timesMap = {};
+  jogos.forEach(j=>{
+    if(!timesMap[j.time_casa]) timesMap[j.time_casa]={pts:0,sg:0,gp:0};
+    if(!timesMap[j.time_fora]) timesMap[j.time_fora]={pts:0,sg:0,gp:0};
+    const {placar_casa:ph,placar_fora:pf}=j;
+    if(ph===null||ph===undefined) return;
+    timesMap[j.time_casa].gp+=ph; timesMap[j.time_casa].sg+=ph-pf;
+    timesMap[j.time_fora].gp+=pf; timesMap[j.time_fora].sg+=pf-ph;
+    if(ph>pf) timesMap[j.time_casa].pts+=3;
+    else if(ph===pf){timesMap[j.time_casa].pts+=1;timesMap[j.time_fora].pts+=1;}
+    else timesMap[j.time_fora].pts+=3;
+  });
+
+  let erros=0;
+  for(const pos of [1,2,3]){
+    const sel=document.getElementById('class_'+grupo+'_'+pos);
+    if(!sel) continue;
+    const [time_nome, pais_cod]=sel.value.split('|');
+    const stats=timesMap[time_nome]||{pts:0,sg:0,gp:0};
+    const {error}=await db.from('classificados').upsert(
+      {grupo,posicao:pos,time_nome,pais_cod,pontos:stats.pts,saldo_gols:stats.sg,gols_pro:stats.gp},
+      {onConflict:'grupo,posicao'}
+    );
+    if(error) erros++;
+  }
+
+  if(erros) return showAlert('admin','error','Erro ao salvar classificados.');
+  showAlert('admin','success','✅ Classificados do Grupo '+grupo+' confirmados! Oitavas atualizadas.');
+
+  // atualizar nomes nos jogos das oitavas
+  await atualizarNomesOitavas();
+}
+
+async function atualizarNomesOitavas(){
+  // buscar todos classificados
+  const {data:class_data} = await db.from('classificados').select('*');
+  if(!class_data||!class_data.length) return;
+
+  const classMap = {}; // "1_C" -> {nome, pais}
+  class_data.forEach(c=>{classMap[c.posicao+'_'+c.grupo]={nome:c.time_nome,pais:c.pais_cod};});
+
+  // mapeamento oitavas: numero do jogo -> {casa: "1_A", fora: "2_B"}
+  const oitavasMap = {
+    73:{casa:'1_A',fora:'2_B'}, 74:{casa:'1_C',fora:'2_D'},
+    75:{casa:'1_E',fora:'3_ABC'}, 76:{casa:'1_F',fora:'2_C'},
+    77:{casa:'1_G',fora:'3_AEH'}, 78:{casa:'1_D',fora:'3_BEF'},
+    79:{casa:'1_I',fora:'3_CDG'}, 80:{casa:'1_H',fora:'2_J'},
+    81:{casa:'2_E',fora:'2_F'}, 82:{casa:'2_A',fora:'2_B'},
+    83:{casa:'1_B',fora:'3_EFG'}, 84:{casa:'1_J',fora:'2_H'},
+    85:{casa:'1_K',fora:'3_DIJ'}, 86:{casa:'2_K',fora:'2_L'},
+    87:{casa:'1_L',fora:'3_EHI'}, 88:{casa:'2_D',fora:'2_G'},
+    89:{casa:'1_C',fora:'2_A'},
+  };
+
+  for(const [num, slots] of Object.entries(oitavasMap)){
+    const jogoNum = parseInt(num);
+    const {data:jogo} = await db.from('jogos_copa').select('*').eq('numero',jogoNum);
+    if(!jogo||!jogo.length) continue;
+
+    // resolve casa
+    const casaKey=slots.casa;
+    const foraKey=slots.fora;
+    const casa=classMap[casaKey];
+    const fora=classMap[foraKey];
+
+    if(casa||fora){
+      const updates={};
+      if(casa){updates.time_casa=casa.nome;updates.pais_casa=casa.pais;}
+      if(fora){updates.time_fora=fora.nome;updates.pais_fora=fora.pais;}
+      await db.from('jogos_copa').upsert({...jogo[0],...updates},{onConflict:'id'});
+    }
+  }
 }
 
 async function loadSuperPanel(){await loadPendentes();await loadTodosBoloes();}
