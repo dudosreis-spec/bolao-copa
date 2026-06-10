@@ -191,7 +191,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); min-he
     <div class="card">
       <div class="card-title">Código do bolão</div>
       <p style="font-size:13px;color:var(--w40);margin-bottom:12px">Digite o código que seu organizador enviou</p>
-      <div class="field"><input class="inp inp-gold" type="text" id="input-codigo" placeholder="Ex: REIS2026" maxlength="20" oninput="this.value=this.value.toUpperCase()"/></div>
+      <div class="field"><input class="inp inp-gold" type="text" id="input-codigo" placeholder="Ex: COPA2026" maxlength="20" oninput="this.value=this.value.toUpperCase()"/></div>
       <button class="btn btn-gold" onclick="entrarCodigo()">Entrar →</button>
     </div>
     <div class="card card-gold">
@@ -208,6 +208,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); min-he
       <div class="field"><label>Nome da família</label><input class="inp" type="text" id="criar-familia" placeholder="Ex: Família Silva"/></div>
       <div class="field"><label>Código de acesso</label><input class="inp inp-gold" type="text" id="criar-codigo" placeholder="Ex: SILVA2026" maxlength="20" oninput="this.value=this.value.toUpperCase()"/></div>
       <div class="field"><label>Seu nome (admin)</label><input class="inp" type="text" id="criar-nome" placeholder="Seu nome..."/></div>
+      <div class="field"><label>Email</label><input class="inp" type="email" id="criar-email" placeholder="seu@email.com"/></div>
       <div class="field"><label>Senha</label><input class="inp" type="password" id="criar-senha" placeholder="Crie uma senha..."/></div>
       <div class="field"><label>Confirmar senha</label><input class="inp" type="password" id="criar-senha2" placeholder="Repita a senha..."/></div>
       <button class="btn btn-gold" onclick="criarBolao()">Solicitar criação</button>
@@ -230,13 +231,26 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); min-he
       <div class="field"><label>Nome</label><input class="inp" type="text" id="login-nome" placeholder="Seu nome..."/></div>
       <div class="field"><label>Senha</label><input class="inp" type="password" id="login-senha" placeholder="Sua senha..."/></div>
       <button class="btn btn-gold" onclick="fazerLogin()">Entrar</button>
+      <button class="btn btn-out" onclick="switchTab('recuperar')" style="margin-top:4px">Esqueci minha senha</button>
     </div>
     <div class="card" id="form-cadastro" style="display:none">
       <div class="card-title">Criar conta</div>
       <div class="field"><label>Nome</label><input class="inp" type="text" id="cad-nome" placeholder="Como quer aparecer no ranking..."/></div>
+      <div class="field"><label>Email</label><input class="inp" type="email" id="cad-email" placeholder="seu@email.com"/></div>
       <div class="field"><label>Senha</label><input class="inp" type="password" id="cad-senha" placeholder="Crie uma senha..."/></div>
       <div class="field"><label>Confirmar</label><input class="inp" type="password" id="cad-senha2" placeholder="Repita..."/></div>
       <button class="btn btn-gold" onclick="fazerCadastro()">Cadastrar</button>
+      <button class="btn btn-out" onclick="switchTab('recuperar')" style="margin-top:4px">Esqueci minha senha</button>
+    </div>
+    <div class="card" id="form-recuperar" style="display:none">
+      <div class="card-title">Recuperar senha</div>
+      <p style="font-size:12px;color:var(--w40);margin-bottom:12px">Digite seu nome e email cadastrados para redefinir sua senha.</p>
+      <div class="field"><label>Nome</label><input class="inp" type="text" id="rec-nome" placeholder="Seu nome..."/></div>
+      <div class="field"><label>Email</label><input class="inp" type="email" id="rec-email" placeholder="seu@email.com"/></div>
+      <div class="field"><label>Nova senha</label><input class="inp" type="password" id="rec-senha" placeholder="Nova senha..."/></div>
+      <div class="field"><label>Confirmar</label><input class="inp" type="password" id="rec-senha2" placeholder="Repita..."/></div>
+      <button class="btn btn-gold" onclick="recuperarSenha()">Redefinir senha</button>
+      <button class="btn btn-out" onclick="switchTab('login')" style="margin-top:4px">← Voltar</button>
     </div>
   </div>
 
@@ -296,13 +310,54 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); min-he
       <div><div class="badge-name" style="color:var(--red)">⭐ Super Admin</div><div class="badge-sub">Acesso total</div></div>
       <button class="btn-change" onclick="adminLogout()">Sair</button>
     </div>
-    <div class="card">
-      <div class="card-title">Bolões pendentes de aprovação</div>
-      <div id="pendentes-list"><div class="loading-text"><span class="spinner"></span></div></div>
+
+    <!-- tabs super admin -->
+    <div class="tab-row" style="margin-bottom:16px">
+      <button class="tab-btn active" id="stab-boloes" onclick="switchSuperTab('boloes')">Bolões</button>
+      <button class="tab-btn" id="stab-placares" onclick="switchSuperTab('placares')">Placares</button>
     </div>
-    <div class="card">
-      <div class="card-title">Todos os bolões</div>
-      <div id="todos-boloes-list"><div class="loading-text"><span class="spinner"></span></div></div>
+
+    <!-- aba bolões -->
+    <div id="super-boloes">
+      <div class="card">
+        <div class="card-title">Bolões pendentes de aprovação</div>
+        <div id="pendentes-list"><div class="loading-text"><span class="spinner"></span></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Todos os bolões</div>
+        <div id="todos-boloes-list"><div class="loading-text"><span class="spinner"></span></div></div>
+      </div>
+    </div>
+
+    <!-- aba placares -->
+    <div id="super-placares" style="display:none">
+      <div class="card card-gold">
+        <div class="card-title card-title-gold">Filtrar por fase</div>
+        <select class="select-inp" id="filtro-fase" onchange="loadSuperPlacares()">
+          <option value="">Todos os jogos</option>
+          <option value="Grupos">Fase de Grupos</option>
+          <option value="Mata-Mata">Mata-Mata</option>
+        </select>
+        <select class="select-inp" id="filtro-grupo" style="margin-top:8px" onchange="loadSuperPlacares()">
+          <option value="">Todos os grupos</option>
+          <option value="A">Grupo A</option><option value="B">Grupo B</option>
+          <option value="C">Grupo C</option><option value="D">Grupo D</option>
+          <option value="E">Grupo E</option><option value="F">Grupo F</option>
+          <option value="G">Grupo G</option><option value="H">Grupo H</option>
+          <option value="I">Grupo I</option><option value="J">Grupo J</option>
+          <option value="K">Grupo K</option><option value="L">Grupo L</option>
+          <option value="Oitavas">Oitavas</option>
+          <option value="Quartas">Quartas</option>
+          <option value="Semifinal">Semifinal</option>
+          <option value="3º Lugar">3º Lugar</option>
+          <option value="Final">Final</option>
+        </select>
+      </div>
+      <div class="card">
+        <div class="card-title">Lançar placares reais</div>
+        <div id="super-placares-list"><div class="loading-text"><span class="spinner"></span></div></div>
+        <button class="btn btn-gold" id="btn-super-salvar" onclick="salvarSuperPlacares()" style="margin-top:8px;display:none">💾 Salvar placares</button>
+      </div>
     </div>
   </div>
 
@@ -344,12 +399,7 @@ body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); min-he
       </div>
     </div>
 
-    <!-- placares reais -->
-    <div class="card">
-      <div class="card-title">Lançar placares reais</div>
-      <div id="admin-placares-list"><div class="loading-text"><span class="spinner"></span></div></div>
-      <button class="btn btn-gold" id="btn-salvar-placares" onclick="salvarPlacares()" style="margin-top:8px;display:none">💾 Salvar placares</button>
-    </div>
+
   </div>
 </div>
 
@@ -424,8 +474,9 @@ function clearSession() {
 function switchTab(tab) {
   document.getElementById('tab-login').classList.toggle('active',tab==='login');
   document.getElementById('tab-cadastro').classList.toggle('active',tab==='cadastro');
-  document.getElementById('form-login').style.display    =tab==='login'    ?'block':'none';
-  document.getElementById('form-cadastro').style.display =tab==='cadastro' ?'block':'none';
+  document.getElementById('form-login').style.display     = tab==='login'     ? 'block' : 'none';
+  document.getElementById('form-cadastro').style.display  = tab==='cadastro'  ? 'block' : 'none';
+  document.getElementById('form-recuperar').style.display = tab==='recuperar' ? 'block' : 'none';
 }
 
 // ── ENTRAR COM CÓDIGO ─────────────────────────────
@@ -448,10 +499,12 @@ async function criarBolao() {
   const fnome =document.getElementById('criar-familia').value.trim();
   const cod   =document.getElementById('criar-codigo').value.trim().toUpperCase();
   const nome  =document.getElementById('criar-nome').value.trim();
+  const email =document.getElementById('criar-email').value.trim().toLowerCase();
   const senha =document.getElementById('criar-senha').value;
   const senha2=document.getElementById('criar-senha2').value;
 
   if(!fnome||!cod||!nome) return showAlert('palpite','error','Preencha todos os campos.');
+  if(!email||!email.includes('@')) return showAlert('palpite','error','Digite um email válido.');
   if(cod.length<4) return showAlert('palpite','error','Código muito curto (mín. 4 letras).');
   if(senha.length<3) return showAlert('palpite','error','Senha muito curta.');
   if(senha!==senha2) return showAlert('palpite','error','As senhas não conferem.');
@@ -465,7 +518,7 @@ async function criarBolao() {
   if(e1) return showAlert('palpite','error','Erro: '+e1.message);
 
   // criar usuário admin
-  const {error:e2}=await db.from('usuarios').insert({nome,senha,familia:cod,role:'admin'});
+  const {error:e2}=await db.from('usuarios').insert({nome,email,senha,familia:cod,role:'admin'});
   if(e2) return showAlert('palpite','error','Erro ao criar usuário: '+e2.message);
 
   showAlert('palpite','success','✅ Solicitação enviada! Aguarde aprovação do administrador.');
@@ -475,24 +528,58 @@ async function criarBolao() {
 
 // ── CADASTRO ──────────────────────────────────────
 async function fazerCadastro() {
-  const nome  =document.getElementById('cad-nome').value.trim();
-  const senha =document.getElementById('cad-senha').value;
-  const senha2=document.getElementById('cad-senha2').value;
-  if(!nome) return showAlert('palpite','error','Digite seu nome.');
-  if(senha.length<3) return showAlert('palpite','error','Senha muito curta.');
+  const nome  = document.getElementById('cad-nome').value.trim();
+  const email = document.getElementById('cad-email').value.trim().toLowerCase();
+  const senha = document.getElementById('cad-senha').value;
+  const senha2= document.getElementById('cad-senha2').value;
+
+  if(!nome)  return showAlert('palpite','error','Digite seu nome.');
+  if(!email || !email.includes('@')) return showAlert('palpite','error','Digite um email válido.');
+  if(senha.length<3) return showAlert('palpite','error','Senha muito curta (mín. 3 caracteres).');
   if(senha!==senha2) return showAlert('palpite','error','As senhas não conferem.');
 
   const {data:exist}=await db.from('usuarios').select('id').eq('nome',nome).eq('familia',currentFamilia.codigo);
-  if(exist&&exist.length>0) return showAlert('palpite','error','Nome já em uso nesse bolão.');
+  if(exist&&exist.length>0) return showAlert('palpite','error','Nome já em uso nesse bolão. Escolha outro ou faça login.');
 
-  const {error}=await db.from('usuarios').insert({nome,senha,familia:currentFamilia.codigo,role:'user'});
+  const {data:existEmail}=await db.from('usuarios').select('id').eq('email',email).eq('familia',currentFamilia.codigo);
+  if(existEmail&&existEmail.length>0) return showAlert('palpite','error','Email já cadastrado nesse bolão.');
+
+  const {error}=await db.from('usuarios').insert({nome, email, senha, familia:currentFamilia.codigo, role:'user'});
   if(error) return showAlert('palpite','error','Erro: '+error.message);
 
   showAlert('palpite','success','✅ Cadastro feito!');
-  setTimeout(()=>entrarComoUser({nome,senha,role:'user'}),800);
+  setTimeout(()=>entrarComoUser({nome, email, senha, role:'user'}),800);
 }
 
 // ── LOGIN ─────────────────────────────────────────
+async function recuperarSenha() {
+  const nome  = document.getElementById('rec-nome').value.trim();
+  const email = document.getElementById('rec-email').value.trim().toLowerCase();
+  const senha = document.getElementById('rec-senha').value;
+  const senha2= document.getElementById('rec-senha2').value;
+
+  if(!nome || !email) return showAlert('palpite','error','Preencha nome e email.');
+  if(senha.length < 3) return showAlert('palpite','error','Senha muito curta.');
+  if(senha !== senha2) return showAlert('palpite','error','As senhas não conferem.');
+
+  const {data, error} = await db.from('usuarios').select('*')
+    .eq('nome', nome).eq('email', email).eq('familia', currentFamilia.codigo);
+
+  if(error || !data || data.length === 0)
+    return showAlert('palpite','error','Nome e email não conferem. Verifique os dados.');
+
+  // atualizar senha via upsert
+  const u = data[0];
+  const {error: errUp} = await db.from('usuarios').upsert({...u, senha}, {onConflict:'id'});
+  if(errUp) return showAlert('palpite','error','Erro ao redefinir: '+errUp.message);
+
+  showAlert('palpite','success','✅ Senha redefinida! Fazendo login...');
+  setTimeout(() => {
+    switchTab('login');
+    document.getElementById('login-nome').value = nome;
+  }, 1000);
+}
+
 async function fazerLogin() {
   const nome =document.getElementById('login-nome').value.trim();
   const senha=document.getElementById('login-senha').value;
@@ -521,7 +608,19 @@ function logout() {
 
 // ── JOGOS + PALPITES ──────────────────────────────
 async function loadJogosEPalpites() {
-  const {data:jogos}=await db.from('jogos').select('*').eq('familia',currentFamilia.codigo).eq('visivel',true).order('numero',{ascending:true});
+  // buscar jogos selecionados pela família
+  const {data:jogosLocal}=await db.from('jogos').select('*').eq('familia',currentFamilia.codigo).eq('visivel',true).order('numero',{ascending:true});
+  // buscar placares reais da tabela global
+  const numeros = (jogosLocal||[]).map(j=>j.numero);
+  let jogos = jogosLocal || [];
+  if(numeros.length>0) {
+    const {data:globais}=await db.from('jogos_copa').select('*').in('numero',numeros);
+    // merge placar global nos jogos locais
+    jogos = jogos.map(j=>{
+      const g = (globais||[]).find(x=>x.numero===j.numero);
+      return g ? {...j, placar_casa:g.placar_casa, placar_fora:g.placar_fora} : j;
+    });
+  }
   jogosCache=jogos||[];
 
   // carregar palpites existentes
@@ -676,18 +775,30 @@ async function loadRanking() {
   // todos os palpites da família
   const {data:pals} = await db.from('palpites').select('*').eq('familia',currentFamilia.codigo);
 
-  // acumular=true: todos os jogos (visivel ou não) com placar lançado
+  // buscar placares globais
+  const todosNums = acumular
+    ? (await db.from('jogos').select('numero').eq('familia',currentFamilia.codigo)).data?.map(j=>j.numero) || []
+    : (jogosAtivos||[]).map(j=>j.numero);
+
+  let globaisMap = {};
+  if(todosNums.length>0) {
+    const {data:globais} = await db.from('jogos_copa').select('*').in('numero', todosNums);
+    (globais||[]).forEach(g => globaisMap[g.numero] = g);
+  }
+
+  // acumular=true: todos os jogos selecionados alguma vez com placar global lançado
   // acumular=false: só jogos visíveis
   let jogosParaRanking;
   if(acumular) {
     const {data:todosJogos} = await db.from('jogos').select('*').eq('familia',currentFamilia.codigo).order('numero');
-    // só os que têm placar lançado
-    jogosParaRanking = (todosJogos||[]).filter(j => j.placar_casa !== null && j.placar_casa !== undefined);
-    // também incluir jogos visíveis sem placar (para mostrar palpites pendentes)
-    const visivelSemPlacar = (jogosAtivos||[]).filter(j => j.placar_casa === null || j.placar_casa === undefined);
-    jogosParaRanking = [...jogosParaRanking, ...visivelSemPlacar.filter(j => !jogosParaRanking.find(x=>x.id===j.id))];
+    jogosParaRanking = (todosJogos||[]).map(j=>({...j,...(globaisMap[j.numero]||{}), id:j.id}))
+      .filter(j => j.placar_casa !== null && j.placar_casa !== undefined);
+    const visivelSemPlacar = (jogosAtivos||[])
+      .map(j=>({...j,...(globaisMap[j.numero]||{}), id:j.id}))
+      .filter(j => j.placar_casa === null || j.placar_casa === undefined);
+    jogosParaRanking = [...jogosParaRanking, ...visivelSemPlacar.filter(j=>!jogosParaRanking.find(x=>x.id===j.id))];
   } else {
-    jogosParaRanking = jogosAtivos || [];
+    jogosParaRanking = (jogosAtivos||[]).map(j=>({...j,...(globaisMap[j.numero]||{}), id:j.id}));
   }
 
   const {data:users}  = await db.from('usuarios').select('nome').eq('familia',currentFamilia.codigo).eq('role','user').order('nome');
@@ -795,9 +906,70 @@ function adminLogout() {
 }
 
 // ── SUPER ADMIN ───────────────────────────────────
+function switchSuperTab(tab) {
+  document.getElementById('stab-boloes').classList.toggle('active', tab==='boloes');
+  document.getElementById('stab-placares').classList.toggle('active', tab==='placares');
+  document.getElementById('super-boloes').style.display   = tab==='boloes'   ? 'block' : 'none';
+  document.getElementById('super-placares').style.display = tab==='placares' ? 'block' : 'none';
+  if(tab==='placares') loadSuperPlacares();
+}
+
 async function loadSuperPanel() {
   await loadPendentes();
   await loadTodosBoloes();
+}
+
+async function loadSuperPlacares() {
+  const fase  = document.getElementById('filtro-fase')?.value || '';
+  const grupo = document.getElementById('filtro-grupo')?.value || '';
+  const el    = document.getElementById('super-placares-list');
+  const btn   = document.getElementById('btn-super-salvar');
+  el.innerHTML = '<div class="loading-text"><span class="spinner"></span></div>';
+
+  let query = db.from('jogos_copa').select('*').order('numero');
+  if(fase)  query = query.eq('fase', fase);
+  if(grupo) query = query.eq('grupo', grupo);
+  const {data:jogos} = await query;
+
+  if(!jogos||!jogos.length){el.innerHTML='<div class="empty-state">Nenhum jogo encontrado.</div>';btn.style.display='none';return;}
+  btn.style.display='block';
+
+  el.innerHTML = jogos.map(j=>`
+    <div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.05)">
+      <div style="font-size:11px;color:var(--w40);margin-bottom:6px">
+        J${j.numero} · ${j.grupo} · ${formatDate(j.data_hora)}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="flex:1;font-size:13px;font-weight:700;text-align:right">${j.time_casa}</div>
+        <div class="score-row" style="width:120px;flex-shrink:0">
+          <input class="score-inp" type="number" min="0" max="99" placeholder="—" id="sp_h_${j.id}" value="${j.placar_casa!==null&&j.placar_casa!==undefined?j.placar_casa:''}">
+          <div class="x-sep">x</div>
+          <input class="score-inp" type="number" min="0" max="99" placeholder="—" id="sp_f_${j.id}" value="${j.placar_fora!==null&&j.placar_fora!==undefined?j.placar_fora:''}">
+        </div>
+        <div style="flex:1;font-size:13px;font-weight:700">${j.time_fora}</div>
+      </div>
+    </div>`).join('');
+
+  // store current jogos ids for save
+  el.setAttribute('data-ids', jogos.map(j=>j.id).join(','));
+}
+
+async function salvarSuperPlacares() {
+  const el  = document.getElementById('super-placares-list');
+  const ids = el.getAttribute('data-ids')?.split(',') || [];
+  let ok=0, erros=0;
+
+  for(const id of ids) {
+    const h = document.getElementById('sp_h_'+id)?.value;
+    const f = document.getElementById('sp_f_'+id)?.value;
+    const ph = h!==''&&h!==undefined ? parseInt(h) : null;
+    const pf = f!==''&&f!==undefined ? parseInt(f) : null;
+    const {error} = await db.from('jogos_copa').upsert({id:parseInt(id), placar_casa:ph, placar_fora:pf},{onConflict:'id'});
+    if(error) erros++; else ok++;
+  }
+
+  if(erros) showAlert('admin','error',`${erros} erro(s) ao salvar.`);
+  else showAlert('admin','success',`✅ ${ok} placar(es) salvos! Ranking de todas as famílias atualizado.`);
 }
 
 async function loadPendentes() {
@@ -878,7 +1050,6 @@ async function rejeitarBolaoBtn(btn) {
 async function loadFamiliaAdmin() {
   await loadJogosSelector();
   await loadAdminJogos();
-  await loadAdminPlacares();
   await loadFlagAcumular();
 }
 
